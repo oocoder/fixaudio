@@ -30,6 +30,7 @@ DerivedData/
 .env
 .env.*
 !.env.example
+.local-signing.env
 .claude/
 .codex/
 .agents/

@@ -26,6 +26,12 @@ CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" SWIFT_MODULECACHE_PATH="$MODULE_CACHE" /
   "$SOURCE" \
   -o "$CONTENTS/MacOS/MeetingRecorder"
 /bin/cp "$SCRIPT_DIR/src/MeetingRecorder-Info.plist" "$CONTENTS/Info.plist"
+# Optional per-machine signing configuration. This file is ignored by Git and
+# should contain only a certificate name, never a private key or password.
+LOCAL_SIGNING_CONFIG="$SCRIPT_DIR/.local-signing.env"
+if [ -f "$LOCAL_SIGNING_CONFIG" ]; then
+  . "$LOCAL_SIGNING_CONFIG"
+fi
 SIGNING_IDENTITY=${FIXAUDIO_SIGNING_IDENTITY:--}
 /usr/bin/codesign --force --sign "$SIGNING_IDENTITY" "$OUTPUT"
 
