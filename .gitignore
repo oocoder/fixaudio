@@ -1,0 +1,36 @@
+# macOS
+.DS_Store
+
+# Build products and Swift compiler caches
+/out/
+/.build/
+DerivedData/
+*.dSYM/
+
+# Recordings, transcripts, and local audio artifacts
+*.m4a
+*.caf
+*.wav
+/recordings/
+/transcripts/
+/processed/
+
+# Secrets and signing material
+*.p12
+*.pfx
+*.pem
+*.key
+*.cer
+*.crt
+*.mobileprovision
+*.keychain
+*.keychain-db
+
+# Local configuration and tooling state
+.env
+.env.*
+!.env.example
+.claude/
+.codex/
+.agents/
+tmp/
