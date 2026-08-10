@@ -62,6 +62,10 @@ FIXAUDIO_SIGNING_IDENTITY="Apple Development: Your Name (TEAMID)" \
 Keep the bundle identifier and signing identity stable so macOS can retain the
 microphone permission between builds.
 
+For a personal development machine, the build script also reads an ignored
+`.local-signing.env` file containing `FIXAUDIO_SIGNING_IDENTITY`. This file is
+machine-local configuration and must never be committed.
+
 ## Record and transcribe
 
 1. Start the meeting and confirm its microphone meter responds.
