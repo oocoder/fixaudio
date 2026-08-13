@@ -420,9 +420,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func transcribeLastRecording() {
         guard let sourcesURL = lastSourcesURL,
               FileManager.default.fileExists(atPath: sourcesURL.path) else {
-            show(title: "Nothing to transcribe",
-                 message: "The per-source file is missing. Record a meeting first.",
-                 style: .warning)
+            status.title = "Nothing to transcribe — record a meeting first"
             return
         }
         isTranscribing = true
