@@ -89,6 +89,30 @@ no remote party) are skipped rather than failing the transcription.
 Diarizing the per-source channels (not the summed mix) is what makes labels
 correct even when speakers overlap.
 
+## Source layout
+
+`src/MeetingRecorder/` — one file per concern:
+
+- `RecorderError.swift` — error enum.
+- `AudioDevices.swift` — Core Audio device lookup by name.
+- `DeviceCapture.swift` — one `AVAudioEngine` per input device (raw, no Voice
+  Processing).
+- `MeetingRecorder.swift` — owns both captures + the ffmpeg encode (centered
+  M4A + `-sources.m4a`).
+- `Transcriber.swift` — FluidAudio per-source transcription (Parakeet + offline
+  VBx).
+- `StatusIconAnimator.swift` — menu-bar icon pulse animation.
+- `AppDelegate.swift` — menu-bar UI + record/transcribe actions.
+- `main.swift` — entry point (`NSApplication.shared` + `run`).
+
+`experiments/native-transcriber/` — a standalone Swift CLI testbed for the same
+FluidAudio transcription (used to validate per-source diarization; the app
+supersedes it for production use).
+
+Build: `Package.swift` (Swift Package Manager, depends on FluidAudio);
+`./build-meeting-recorder.sh` builds + signs `out/Meeting Recorder.app`. Install
+by copying the `.app` to `~/Applications`.
+
 ## Validated workflow
 
 The following path has been validated with a meeting running on two devices:
@@ -131,7 +155,10 @@ The following path has been validated with a meeting running on two devices:
 - Signed and notarized release packaging.
 - Multi-party (4+) diarization validation; Sortformer/LS-EEND engine options.
 - Optional live transcription preview (streaming ASR + diarization).
-- Automated tests for M4A finalization and device-loss recovery.
+- Automated tests: none yet. The app is GUI / Core Audio / FluidAudio, so
+  verification is build + manual test; unit tests would require mocking
+  AVAudioEngine / Core Audio / FluidAudio. Priorities when added: M4A
+  finalization and device-loss recovery.
 
 Screen/video capture is intentionally out of scope for the current audio-only
 application.
