@@ -1,7 +1,8 @@
 # Meeting Recorder for macOS
 
 Meeting Recorder is a small native menu-bar app that records both sides of an
-online meeting into a stereo M4A file.
+online meeting into a stereo M4A file and transcribes them on-device
+(Parakeet ASR + speaker diarization, no cloud, no Python).
 
 It captures the physical microphone and BlackHole independently instead of
 wrapping them in a macOS aggregate input device. This avoids a Core Audio issue
@@ -16,7 +17,10 @@ open its subdevices in a particular order.
 - Writes a centered stereo M4A for playback plus a `<stem>-sources.m4a`
   (left = mic, right = remote) so transcription can extract each side by
   channel.
-- Runs as a native Swift menu-bar app with no analytics or network access.
+- Transcribes on-device via the **Transcribe Last Recording** menu: FluidAudio
+  (NVIDIA Parakeet ASR + offline VBx diarization) on the per-source file →
+  `<stem>.txt` with `You` / `Remote_A/B/…` labels.
+- Runs as a native Swift menu-bar app; no telemetry or analytics.
 
 ## Why the recorder does not use Apple Voice Processing
 
@@ -40,12 +44,14 @@ mode selector while the mic is in use; choose Voice Isolation there.
 
 ## Requirements
 
-- macOS 13 or later on Apple silicon.
-- Xcode Command Line Tools (`swiftc`).
+- macOS 15 or later on Apple silicon (FluidAudio/CoreML).
+- Xcode Command Line Tools (`swift` / Swift Package Manager).
 - [BlackHole 2ch](https://github.com/ExistentialAudio/BlackHole), installed
-  separately.
+  separately (captures the remote side).
 - `ffmpeg`, installed separately (Homebrew paths are detected automatically).
 - An external microphone named `External Microphone`.
+- ~1 GB free for FluidAudio models, downloaded automatically from HuggingFace on
+  first transcription (cached thereafter).
 
 The current prototype uses these fixed Core Audio device names. Device selection
 is planned for a future release.
@@ -87,24 +93,30 @@ For a personal development machine, the build script also reads an ignored
 `.local-signing.env` file containing `FIXAUDIO_SIGNING_IDENTITY`. This file is
 machine-local configuration and must never be committed.
 
-## Record
+## Record and transcribe
 
 1. Start the meeting and confirm its microphone meter responds.
 2. Choose **Start Meeting Recording…** from the menu-bar app.
 3. Choose **Stop and Save Recording** when finished.
+4. Choose **Transcribe Last Recording**. A small progress panel shows the phase
+   (first run downloads ~1 GB of models, then inference runs on-device). When
+   done, `<stem>.txt` is written next to the recording with `You` /
+   `Remote_A/B/…` labels.
 
-This recorder captures audio only. Transcription is handled separately.
-
-Two files are written: `<stem>.m4a` (centered stereo, for listening) and
-`<stem>-sources.m4a` (left = your voice, right = the remote side, for
+Two files are written on save: `<stem>.m4a` (centered stereo, for listening)
+and `<stem>-sources.m4a` (left = your voice, right = the remote side, for
 transcription). Transcription extracts each side by channel from the
 `-sources` file (left → "You", right → diarized "Remote"), which is reliable
-even when speakers overlap — diarizing a summed mix is not.
+even when speakers overlap — diarizing a summed mix is not. Playback of
+`<stem>.m4a` is normal centered stereo.
 
 ## Privacy
 
-Audio stays on the Mac. Meeting Recorder has no telemetry, analytics, or network
-client. It launches `ffmpeg` locally to create the M4A.
+Audio stays on the Mac. Meeting Recorder has no telemetry or analytics.
+It launches `ffmpeg` locally to create the M4A, and runs FluidAudio on-device
+for transcription. The only network use is the first-transcription model
+download from HuggingFace (cached thereafter); inference never sends audio
+anywhere.
 
 Record meetings only with the knowledge and consent required by the laws and
 policies that apply to you and the participants.

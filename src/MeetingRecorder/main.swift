@@ -326,6 +326,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         keyEquivalent: "r"
     )
     private let recorder = MeetingRecorder()
+    private lazy var transcribeItem = NSMenuItem(
+        title: "Transcribe Last Recording",
+        action: #selector(transcribeLastRecording),
+        keyEquivalent: "t"
+    )
+    private var lastSourcesURL: URL?
+    private let progressPanel = ProgressPanel()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem.button?.image = NSImage(
@@ -335,10 +342,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
         status.isEnabled = false
         recordItem.target = self
+        transcribeItem.target = self
+        transcribeItem.isEnabled = false
 
         menu.addItem(status)
         menu.addItem(.separator())
         menu.addItem(recordItem)
+        menu.addItem(transcribeItem)
         menu.addItem(.separator())
         let quit = NSMenuItem(
             title: "Quit Meeting Recorder",
@@ -363,6 +373,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 switch result {
                 case .success(let url):
                     self.status.title = "Saved \(url.lastPathComponent)"
+                    let stem = url.deletingPathExtension().lastPathComponent
+                    self.lastSourcesURL = url.deletingLastPathComponent()
+                        .appendingPathComponent("\(stem)-sources.m4a")
+                    self.transcribeItem.isEnabled = true
                     self.show(title: "Recording saved", message: "\(url.path)\n\n\(self.recorder.diagnosticSummary)", style: .informational)
                 case .failure(let error):
                     self.status.title = "Export failed"
@@ -397,6 +411,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.show(title: "Recording could not start", message: error.localizedDescription, style: .critical)
             }
         }
+    }
+
+    @objc private func transcribeLastRecording() {
+        guard let sourcesURL = lastSourcesURL,
+              FileManager.default.fileExists(atPath: sourcesURL.path) else {
+            show(title: "Nothing to transcribe",
+                 message: "The per-source file is missing. Record a meeting first.",
+                 style: .warning)
+            return
+        }
+        transcribeItem.isEnabled = false
+        status.title = "Transcribing…"
+        progressPanel.show("Loading models…")
+        let stem = sourcesURL.deletingPathExtension().lastPathComponent
+            .replacingOccurrences(of: "-sources", with: "")
+        let outURL = sourcesURL.deletingLastPathComponent()
+            .appendingPathComponent("\(stem).txt")
+        Transcriber.run(
+            sourcesURL: sourcesURL,
+            progress: { [weak self] phase, _ in
+                DispatchQueue.main.async {
+                    self?.status.title = "Transcribing… \(phase)"
+                    self?.progressPanel.update(phase)
+                }
+            },
+            completion: { [weak self] result in
+                DispatchQueue.main.async {
+                    self?.progressPanel.hide()
+                    self?.transcribeItem.isEnabled = true
+                    switch result {
+                    case .success(let segs):
+                        let text = segs.map {
+                            String(format: "[%.2fs - %.2fs] %@: %@", $0.start, $0.end, $0.speaker, $0.text)
+                        }.joined(separator: "\n")
+                        do {
+                            try text.write(to: outURL, atomically: true, encoding: .utf8)
+                            self?.status.title = "Transcript saved \(outURL.lastPathComponent)"
+                            self?.show(title: "Transcription finished",
+                                       message: "\(outURL.path)\n\n\(text)", style: .informational)
+                        } catch {
+                            self?.status.title = "Transcript write failed"
+                            self?.show(title: "Could not save transcript",
+                                       message: error.localizedDescription, style: .critical)
+                        }
+                    case .failure(let error):
+                        self?.status.title = "Transcription failed"
+                        self?.show(title: "Transcription failed",
+                                   message: "\(error)", style: .critical)
+                    }
+                }
+            })
     }
 
     private func show(title: String, message: String, style: NSAlert.Style) {
