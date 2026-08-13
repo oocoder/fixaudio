@@ -339,6 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         iconAnimator = StatusIconAnimator(statusItem: statusItem)
         statusItem.menu = menu
         menu.delegate = self
+        menu.autoenablesItems = false
         status.isEnabled = false
         recordItem.target = self
         transcribeItem.target = self
