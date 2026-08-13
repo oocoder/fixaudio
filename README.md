@@ -14,6 +14,8 @@ open its subdevices in a particular order.
 - Captures the microphone and meeting audio as raw, independent input streams
   (no Apple Voice Processing on the capture path — see below).
 - Keeps voices centered in both ears.
+- Retains per-source captures (`<stem>-mic.caf`, `<stem>-remote.caf`) beside the
+  M4A so transcription can use each side separately.
 - Runs as a native Swift menu-bar app with no analytics or network access.
 
 ## Why the recorder does not use Apple Voice Processing
@@ -93,6 +95,11 @@ machine-local configuration and must never be committed.
 
 This recorder captures and mixes audio only. Transcription is handled
 separately.
+
+The recorder also keeps the per-source captures (`<stem>-mic.caf` = your
+voice, `<stem>-remote.caf` = the remote side) next to the M4A. These are
+lossless and the inputs transcription should use — diarizing the mixed M4A is
+unreliable, so the per-source files give the clean `You` / `Remote` separation.
 
 ## Privacy
 
