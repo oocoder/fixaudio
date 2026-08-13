@@ -51,6 +51,11 @@ flowchart LR
   audio from being routed back to participants.
 - On stop, ffmpeg converts the mono mic to centered stereo, preserves BlackHole
   stereo, mixes both sources, applies a safety limiter, and writes 48 kHz AAC.
+- The per-source captures are retained beside the M4A as `<stem>-mic.caf`
+  (local voice) and `<stem>-remote.caf` (the BlackHole/remote side) so
+  transcription can process each side separately. Diarizing the mixed M4A is
+  unreliable when speakers overlap, so the per-source files are the
+  authoritative input for speaker-attributed transcription.
 
 ## Validated workflow
 
@@ -68,8 +73,9 @@ The following path has been validated with a meeting running on two devices:
 
 - Audio devices are currently located by fixed English display names.
 - BlackHole and ffmpeg must be installed separately.
-- Temporary source recordings are removed after a successful final mix. A
-  failed mix leaves the temporary directory available for recovery.
+- Per-source captures (`<stem>-mic.caf`, `<stem>-remote.caf`) are retained beside
+  the M4A for transcription; the temporary directory is removed only after a
+  successful mix. A failed mix leaves the temporary directory for recovery.
 - The menu reports recording state but does not yet show independent live level
   meters for local and remote sources.
 - Ad-hoc builds can lose macOS privacy authorization after recompilation. Use a

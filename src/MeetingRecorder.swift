@@ -243,12 +243,40 @@ private final class MeetingRecorder {
         meeting.stop()
         isRecording = false
 
-        export(microphone: micURL, meeting: meetingURL, destination: destinationURL) { [weak self] result in
+        let destination = destinationURL
+        export(microphone: micURL, meeting: meetingURL, destination: destination) { [weak self] result in
             if case .success = result, let temp = self?.temporaryDirectory {
+                // Keep the per-source captures (lossless .caf) next to the M4A so
+                // transcription can use each side separately: microphone = local
+                // voice, meeting = the remote/BlackHole side. Diarizing the mixed
+                // M4A is unreliable when speakers overlap, so the per-source files
+                // are the authoritative input for speaker-attributed transcription.
+                self?.retainSources(mic: micURL, meeting: meetingURL, beside: destination)
                 try? FileManager.default.removeItem(at: temp)
             }
             self?.temporaryDirectory = nil
-            completion(result.map { destinationURL })
+            completion(result.map { destination })
+        }
+    }
+
+    /// Copies the per-source captures next to the mixed M4A so they survive the
+    /// temporary-directory cleanup. Best-effort: a copy failure is logged but does
+    /// not fail the recording (the mix already succeeded).
+    private func retainSources(mic: URL, meeting: URL, beside destination: URL) {
+        let dir = destination.deletingLastPathComponent()
+        let stem = destination.deletingPathExtension().lastPathComponent
+        let pairs: [(URL, URL)] = [
+            (mic, dir.appendingPathComponent("\(stem)-mic.caf")),
+            (meeting, dir.appendingPathComponent("\(stem)-remote.caf")),
+        ]
+        for (src, dst) in pairs {
+            do {
+                try? FileManager.default.removeItem(at: dst)
+                try FileManager.default.copyItem(at: src, to: dst)
+            } catch {
+                NSLog("Meeting Recorder could not retain source %@: %@",
+                      src.lastPathComponent, error.localizedDescription)
+            }
         }
     }
 
