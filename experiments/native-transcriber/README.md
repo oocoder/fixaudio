@@ -1,67 +1,69 @@
-# native-transcriber (1.0-alpha.1)
+# native-transcriber (1.0-alpha.2)
 
-A side experiment: run meeting transcription **natively in Swift on Apple
-Silicon** using [mlx-audio-swift](https://github.com/Blaizzy/mlx-audio-swift) —
-Parakeet ASR (`mlx-community/parakeet-tdt-0.6b-v3`) + Sortformer speaker
-diarization (`mlx-community/diar_streaming_sortformer_4spk-v2.1-fp16`). This
-mirrors the Python `parakeet-mlx + pyannote` pipeline in `~/projects/audio2text`
-but as a self-contained Swift tool, with no conda/python/script dependency.
+A side experiment: native meeting transcription on Apple Silicon via
+[FluidAudio](https://github.com/FluidInference/FluidAudio) — Parakeet ASR
+(CoreML/ANE) + speaker diarization, all native Swift, **no Python**.
 
-> **Status:** alpha scaffold, intentionally experimental.
+## Status
 
-## ⚠️ Toolchain gate (read first)
+**Builds and runs on macOS 15 / Swift 6 (Apple Silicon).** Verified on an M2 Pro
+/ macOS 15.4 / Swift 6.1: Parakeet loads on CPU+ANE, diarization runs, a
+speaker-attributed transcript is produced. No macOS 26 / Swift 6.2 required
+(unlike `mlx-audio-swift` and `soniqo/speech-swift`, which need Swift 6.2).
 
-`mlx-audio-swift` declares `swift-tools-version 6.2`. It will **not resolve** on
-Swift 6.1 (Xcode 16.x / macOS 15). Confirmed:
+## What it does
 
-```
-error: package 'mlx-audio-swift' is using Swift tools version 6.2.0
-       but the installed version is 6.1.0
-```
+`native-transcriber <audio>`:
+1. Diarizes the file with FluidAudio's **offline VBx** pipeline
+   (segmentation + WeSpeaker + VBx clustering — the pyannote-equivalent, no
+   speaker cap).
+2. Slices the audio by each diarization segment and runs **Parakeet v3** ASR
+   (CoreML/ANE) on each slice.
+3. Emits `[start - end] SPEAKER_xx: text` — the same format as the Python
+   `audio2text` pipeline, for direct comparison.
 
-**Build this with Xcode 26 / Swift 6.2 (macOS 26).** Until the machine is on
-that toolchain, `swift build` will fail at dependency resolution. The code here
-is written against the verified `mlx-audio-swift` API but is **not
-compile-verified on Swift 6.1** — expect small adjustments (esp. Swift 6
-Sendable rules and the exact audio-array / ASR segment-timestamp types) on the
-first real build.
-
-## Build & run (on Xcode 26 / Swift 6.2)
+## Build & run
 
 ```sh
 cd experiments/native-transcriber
-swift build -c release
-.build/release/native-transcriber --version
-.build/release/native-transcriber transcribe /path/to/meeting.m4a
-.build/release/native-transcriber live
+swift build
+./.build/debug/native-transcriber /path/to/meeting.m4a
 ```
 
-First run downloads models from HuggingFace (multi-GB). Microphone access for
-`live` may require granting Terminal/the binary microphone permission.
+First run downloads models (Parakeet CoreML ~1 GB + diarization ~100 MB) to
+`~/Library/Application Support/FluidAudio/Models/`; later runs are fast.
 
-## Commands
+## Comparison vs the Python pipeline (test6, the mixed M4A)
 
-- `transcribe <audio>` — Parakeet ASR + Sortformer diarization of a file.
-  Prints the transcript and per-speaker segments. Speaker-label **merge** is a
-  TODO pending the Parakeet segment-timestamp API (see `FileTranscriber.swift`).
-- `live` — live mic transcription. The input tap only buffers samples; a
-  background loop runs ASR on fixed-size chunks (the "delay queue"), keeping
-  inference off the realtime thread (low UI pressure). If inference is slower
-  than realtime, chunks queue rather than block.
+| | ASR text | Diarization (on the mix) |
+|---|---|---|
+| Python (parakeet-mlx + pyannote) | correct | found 2 speakers, **mislabeled** |
+| FluidAudio (Parakeet + VBx) | correct (parity) | found **1 speaker** (merged) |
 
-## Validation plan (once it builds)
+Both diarizers fail on the **mixed-down** M4A because the recorder's `ffmpeg
+amix` sums your mic + the remote into both channels — you and the remote are in
+both channels and you speak over each other, so no diarizer can cleanly separate
+them. This is the third confirmation that **diarizing the mix is the wrong
+approach**.
 
-1. `transcribe` on a recording, diff the transcript against the Python
-   `audio2text.py` output for the same file — validates ASR parity (same model
-   weights) and diarization quality (Sortformer vs pyannote).
-2. Confirm the Parakeet segment-timestamp API, then implement the speaker-label
-   merge (`merge_transcription_with_speakers` from `audio2text.py`).
-3. `live` against a real call: measure latency and whether the delay queue keeps
-   the capture tap responsive under slower-than-realtime inference.
+## The fix (next): per-source transcription
 
-## Why native
+The recorder captures the two sides **separately** before mixing
+(`microphone.caf` = You, `meeting.caf` = the remote/BlackHole). The correct
+design keeps those per-source files and transcribes each:
 
-The Meeting Recorder previously launched an external transcription script,
-which is not portable (every user needs the conda env, models, and PATH set up).
-A native Swift/MLX path makes transcription self-contained. This experiment
-de-risks that before anything is wired into the recorder.
+```
+External Microphone  →  Parakeet        →  You: …                 (exact, 1 speaker)
+Meeting Output        →  VBx/LS-EEND     →  Remote A / B / C / …   (diarize the N-1 others)
+```
+
+Diarizing the **meeting-output source** (which doesn't contain You) is far
+easier and can't mislabel You — which is exactly what broke on the mix. This
+needs the recorder to retain per-source files; test6's sources were already
+deleted after the mix, so a **fresh recording** is needed to validate it.
+
+## Out of scope for 1.0-alpha
+- @Generable / FoundationModels structured extraction (needs macOS 26+).
+- Bundling models (they auto-download from HuggingFace).
+- Live streaming (post-process is the primary path; live is an optional later
+  preview).
