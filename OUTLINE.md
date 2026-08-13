@@ -24,7 +24,6 @@ flowchart LR
     Recorder[Meeting Recorder]
     Mixer[Local ffmpeg mix]
     M4A[Stereo M4A]
-    Transcript[Optional transcription script]
 
     Mic -->|local voice| Meet
     Meet -->|remote participants| Output
@@ -35,16 +34,19 @@ flowchart LR
     BlackHole -->|independent input| Recorder
     Recorder --> Mixer
     Mixer --> M4A
-    M4A -->|explicit user action| Transcript
 ```
 
 ## Capture behavior
 
 - `External Microphone` is captured through its own `AVAudioEngine`.
 - `BlackHole 2ch` is captured through a separate `AVAudioEngine`.
-- Apple Voice Processing is enabled by default for the physical microphone.
-- The user remains in control of Standard, Voice Isolation, or Wide Spectrum
-  through Apple's system UI.
+- Both devices are opened as plain input-only streams. The recorder does not
+  enable Apple Voice Processing on its capture path, because Voice Processing
+  is a full-duplex acoustic echo canceller that needs the speaker output as an
+  echo reference. A capture-only recorder has no playback path, so without a
+  reference the echo canceller cancels the microphone's own signal and deletes
+  the local voice from the recording. Voice Isolation for the live call is
+  owned by the meeting application and the system mic modes in Control Center.
 - The app never writes microphone samples into BlackHole, preventing meeting
   audio from being routed back to participants.
 - On stop, ffmpeg converts the mono mic to centered stereo, preserves BlackHole
@@ -56,11 +58,11 @@ The following path has been validated with a meeting running on two devices:
 
 1. Meeting microphone set to `External Microphone`.
 2. Meeting speaker set to `Meeting Output`.
-3. Apple Voice Processing and Voice Isolation active.
+3. Local physical microphone and remote participant audio captured as
+   independent raw streams.
 4. Local microphone mute/unmute during recording.
 5. Remote participant audio captured through BlackHole.
 6. Stereo M4A produced without restarting Core Audio.
-7. Post-record transcription and speaker diarization completed successfully.
 
 ## Known limitations
 
@@ -70,12 +72,11 @@ The following path has been validated with a meeting running on two devices:
   failed mix leaves the temporary directory available for recovery.
 - The menu reports recording state but does not yet show independent live level
   meters for local and remote sources.
-- The selected transcription script is local user configuration and is not part
-  of this repository.
 - Ad-hoc builds can lose macOS privacy authorization after recompilation. Use a
   stable Apple Development or Developer ID identity for development/releases.
-- Voice Processing support depends on the active microphone route; the active
-  mode can differ from the user's preferred mode.
+- Voice Processing is intentionally not used on the capture path; see
+  “Capture behavior” above. Voice Isolation for the call is controlled from
+  Control Center and is out of scope for the recorder.
 
 ## Backlog
 

@@ -1,7 +1,7 @@
 # Meeting Recorder for macOS
 
 Meeting Recorder is a small native menu-bar app that records both sides of an
-online meeting into a transcription-ready M4A file.
+online meeting into a stereo M4A file.
 
 It captures the physical microphone and BlackHole independently instead of
 wrapping them in a macOS aggregate input device. This avoids a Core Audio issue
@@ -11,11 +11,30 @@ open its subdevices in a particular order.
 ## Features
 
 - Records a physical microphone and meeting audio into one stereo M4A.
-- Uses Apple Voice Processing by default.
-- Opens Apple's Standard, Voice Isolation, and Wide Spectrum selector.
+- Captures the microphone and meeting audio as raw, independent input streams
+  (no Apple Voice Processing on the capture path — see below).
 - Keeps voices centered in both ears.
-- Can pass a finished recording to a user-selected transcription script.
 - Runs as a native Swift menu-bar app with no analytics or network access.
+
+## Why the recorder does not use Apple Voice Processing
+
+Apple Voice Processing (the Voice Processing IO unit) is a full-duplex
+acoustic echo canceller plus voice/noise processor. It is designed for a live
+call where the audio playing out the speakers is available as an echo
+reference, so it can cancel speaker echo from the microphone and clean your
+voice for the other participant.
+
+A capture-only recorder has no playback path, so it cannot give Voice
+Processing a valid echo reference. With no reference, the echo canceller goes
+degenerate and cancels the microphone's own signal — i.e. it deletes your
+voice from the recording while the separately captured remote track is
+unaffected. For this reason the recorder opens both the physical microphone
+and BlackHole as plain input-only streams.
+
+Voice Isolation for the **live call** (so the other participant hears you more
+clearly) is owned by the meeting application and the system microphone modes
+in Control Center, not by this recorder. Control Center shows a Microphone
+mode selector while the mic is in use; choose Voice Isolation there.
 
 ## Requirements
 
@@ -66,22 +85,19 @@ For a personal development machine, the build script also reads an ignored
 `.local-signing.env` file containing `FIXAUDIO_SIGNING_IDENTITY`. This file is
 machine-local configuration and must never be committed.
 
-## Record and transcribe
+## Record
 
 1. Start the meeting and confirm its microphone meter responds.
 2. Choose **Start Meeting Recording…** from the menu-bar app.
 3. Choose **Stop and Save Recording** when finished.
-4. Choose **Transcribe Last Recording**.
 
-On first use, the app asks you to select an executable transcription script.
-The script receives the M4A path as its first argument, runs with the recording
-directory as its working directory, and is remembered in local preferences.
+This recorder captures and mixes audio only. Transcription is handled
+separately.
 
 ## Privacy
 
 Audio stays on the Mac. Meeting Recorder has no telemetry, analytics, or network
-client. It launches `ffmpeg` locally to create the M4A and only runs a
-transcription script when the user explicitly requests it.
+client. It launches `ffmpeg` locally to create the M4A.
 
 Record meetings only with the knowledge and consent required by the laws and
 policies that apply to you and the participants.
