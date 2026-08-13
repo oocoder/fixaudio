@@ -98,10 +98,10 @@ machine-local configuration and must never be committed.
 1. Start the meeting and confirm its microphone meter responds.
 2. Choose **Start Meeting Recording…** from the menu-bar app.
 3. Choose **Stop and Save Recording** when finished.
-4. Choose **Transcribe Last Recording**. A small progress panel shows the phase
-   (first run downloads ~1 GB of models, then inference runs on-device). When
-   done, `<stem>.txt` is written next to the recording with `You` /
-   `Remote_A/B/…` labels.
+4. Choose **Transcribe Last Recording**. The menu-bar icon animates (blue pulse)
+   while it works — first run downloads ~1 GB of models, then inference runs
+   on-device. When done, `<stem>.txt` is written next to the recording with
+   `You` / `Remote_A/B/…` labels (no popup; the status line reports progress).
 
 Two files are written on save: `<stem>.m4a` (centered stereo, for listening)
 and `<stem>-sources.m4a` (left = your voice, right = the remote side, for
