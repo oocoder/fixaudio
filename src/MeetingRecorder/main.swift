@@ -363,7 +363,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func updateTranscribeItemState() {
         let exists = lastSourcesURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
-        transcribeItem.isEnabled = !isTranscribing && !recorder.isRecording && exists
+        let enabled = !isTranscribing && !recorder.isRecording && exists
+        NSLog("transcribe state: isTranscribing=\(isTranscribing) isRecording=\(recorder.isRecording) lastSourcesURL=\(String(describing: lastSourcesURL)) exists=\(exists) -> enabled=\(enabled)")
+        transcribeItem.isEnabled = enabled
     }
 
     @objc private func toggleRecording() {
