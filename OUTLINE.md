@@ -49,13 +49,13 @@ flowchart LR
   owned by the meeting application and the system mic modes in Control Center.
 - The app never writes microphone samples into BlackHole, preventing meeting
   audio from being routed back to participants.
-- On stop, ffmpeg converts the mono mic to centered stereo, preserves BlackHole
-  stereo, mixes both sources, applies a safety limiter, and writes 48 kHz AAC.
-- The per-source captures are retained beside the M4A as `<stem>-mic.caf`
-  (local voice) and `<stem>-remote.caf` (the BlackHole/remote side) so
-  transcription can process each side separately. Diarizing the mixed M4A is
-  unreliable when speakers overlap, so the per-source files are the
-  authoritative input for speaker-attributed transcription.
+- On stop, ffmpeg writes two AAC M4A files in one pass:
+  - `<stem>.m4a`: a centered stereo mix (both voices in both ears) for playback.
+  - `<stem>-sources.m4a`: a 2-channel file with the mic on the LEFT and the
+    remote (BlackHole) on the RIGHT, so transcription can extract each side by
+    channel — diarizing a summed mix is unreliable when speakers overlap, so the
+    per-channel separation is the authoritative input for speaker-attributed
+    transcription.
 
 ## Validated workflow
 
@@ -73,9 +73,10 @@ The following path has been validated with a meeting running on two devices:
 
 - Audio devices are currently located by fixed English display names.
 - BlackHole and ffmpeg must be installed separately.
-- Per-source captures (`<stem>-mic.caf`, `<stem>-remote.caf`) are retained beside
-  the M4A for transcription; the temporary directory is removed only after a
-  successful mix. A failed mix leaves the temporary directory for recovery.
+- The recorder writes `<stem>.m4a` (centered, for playback) and
+  `<stem>-sources.m4a` (L=mic/R=remote, for transcription). The temporary
+  directory is removed after a successful encode. A failed encode leaves it for
+  recovery.
 - The menu reports recording state but does not yet show independent live level
   meters for local and remote sources.
 - Ad-hoc builds can lose macOS privacy authorization after recompilation. Use a
