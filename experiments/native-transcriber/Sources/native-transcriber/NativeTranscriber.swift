@@ -125,6 +125,7 @@ struct NativeTranscriber {
     /// Diarization segment timestamps carry through.
     static func transcribe(url: URL, diar: OfflineDiarizerManager,
                            asr: AsrManager, mode: LabelMode) async throws -> [Seg] {
+        do {
         let dResult = try await diar.process(url)
         let samples = try AudioConverter().resampleAudioFile(url)
         let sr = 16000
@@ -134,8 +135,14 @@ struct NativeTranscriber {
             let e = min(samples.count, Int(Double(seg.endTimeSeconds) * Double(sr)))
             guard e - s > Int(0.2 * Double(sr)) else { continue }
             var state = TdtDecoderState.make()
-            let res = try await asr.transcribe(Array(samples[s..<e]), decoderState: &state)
-            let text = res.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text: String
+            do {
+                let res = try await asr.transcribe(Array(samples[s..<e]), decoderState: &state)
+                text = res.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            } catch {
+                // Skip segments with no detectable speech instead of failing.
+                continue
+            }
             guard !text.isEmpty else { continue }
             let speaker: String
             switch mode {
@@ -148,6 +155,10 @@ struct NativeTranscriber {
                             speaker: speaker, text: text))
         }
         return out
+        } catch {
+            // No speech on this side or a diarization error -> no segments.
+            return []
+        }
     }
 
     /// Map a diarization speaker id ("0", "1", "S1", …) to a letter (A, B, …).

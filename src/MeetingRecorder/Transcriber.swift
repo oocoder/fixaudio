@@ -43,6 +43,7 @@ final class Transcriber {
     private static func transcribeSide(url: URL, diar: OfflineDiarizerManager,
                                        asr: AsrManager, side: Side,
                                        progress: @escaping (String, Double) -> Void) async throws -> [Seg] {
+        do {
         let dResult = try await diar.process(url)
         let samples = try AudioConverter().resampleAudioFile(url)
         let sr = 16000
@@ -55,8 +56,17 @@ final class Transcriber {
             let e = min(samples.count, Int(Double(seg.endTimeSeconds) * Double(sr)))
             guard e - s > Int(0.2 * Double(sr)) else { continue }
             var state = TdtDecoderState.make()
-            let res = try await asr.transcribe(Array(samples[s..<e]), decoderState: &state)
-            let text = res.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text: String
+            do {
+                let res = try await asr.transcribe(Array(samples[s..<e]), decoderState: &state)
+                text = res.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            } catch {
+                // Skip segments with no detectable speech (e.g. very short/quiet
+                // slices that throw noSpeechDetected) instead of failing the whole
+                // transcription.
+                progress("\(prefix): segment \(i + 1)/\(total) (skipped)", Double(i + 1) / Double(total))
+                continue
+            }
             guard !text.isEmpty else { continue }
             let speaker = side == .you ? "You" : "Remote_\(letter(forId: "\(seg.speakerId)"))"
             out.append(Seg(start: Double(seg.startTimeSeconds),
@@ -65,6 +75,11 @@ final class Transcriber {
             progress("\(prefix): segment \(i + 1)/\(total)", Double(i + 1) / Double(total))
         }
         return out
+        } catch {
+            // No speech on this side (e.g. a recording with no remote party) or
+            // a diarization error -> contribute no segments for this side.
+            return []
+        }
     }
 
     /// Split a 2-channel `-sources.m4a` (L=mic, R=remote) into two temp 16 kHz
