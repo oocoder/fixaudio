@@ -316,7 +316,7 @@ private final class MeetingRecorder {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
     private let status = NSMenuItem(title: "Ready", action: nil, keyEquivalent: "")
@@ -332,18 +332,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         keyEquivalent: "t"
     )
     private var lastSourcesURL: URL?
-    private let progressPanel = ProgressPanel()
+    private var iconAnimator: StatusIconAnimator!
+    private var isTranscribing = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusItem.button?.image = NSImage(
-            systemSymbolName: "record.circle",
-            accessibilityDescription: "Meeting Recorder"
-        )
+        iconAnimator = StatusIconAnimator(statusItem: statusItem)
         statusItem.menu = menu
+        menu.delegate = self
         status.isEnabled = false
         recordItem.target = self
         transcribeItem.target = self
-        transcribeItem.isEnabled = false
 
         menu.addItem(status)
         menu.addItem(.separator())
@@ -356,6 +354,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: "q"
         )
         menu.addItem(quit)
+        updateTranscribeItemState()
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        updateTranscribeItemState()
+    }
+
+    private func updateTranscribeItemState() {
+        let exists = lastSourcesURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+        transcribeItem.isEnabled = !isTranscribing && !recorder.isRecording && exists
     }
 
     @objc private func toggleRecording() {
@@ -366,18 +374,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else { return }
                 self.recordItem.isEnabled = true
                 self.recordItem.title = "Start Meeting Recording…"
-                self.statusItem.button?.image = NSImage(
-                    systemSymbolName: "record.circle",
-                    accessibilityDescription: "Meeting Recorder"
-                )
+                self.iconAnimator.setIdle()
                 switch result {
                 case .success(let url):
                     self.status.title = "Saved \(url.lastPathComponent)"
                     let stem = url.deletingPathExtension().lastPathComponent
                     self.lastSourcesURL = url.deletingLastPathComponent()
                         .appendingPathComponent("\(stem)-sources.m4a")
-                    self.transcribeItem.isEnabled = true
-                    self.show(title: "Recording saved", message: "\(url.path)\n\n\(self.recorder.diagnosticSummary)", style: .informational)
+                    NSLog("Meeting Recorder saved %@ %@", url.path, self.recorder.diagnosticSummary)
+                    self.updateTranscribeItemState()
                 case .failure(let error):
                     self.status.title = "Export failed"
                     self.show(title: "Recording failed", message: error.localizedDescription, style: .critical)
@@ -402,10 +407,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .success:
                 self.status.title = "Recording microphone + meeting audio"
                 self.recordItem.title = "Stop and Save Recording"
-                self.statusItem.button?.image = NSImage(
-                    systemSymbolName: "record.circle.fill",
-                    accessibilityDescription: "Recording in progress"
-                )
+                self.iconAnimator.startRecording()
             case .failure(let error):
                 self.status.title = "Could not start"
                 self.show(title: "Recording could not start", message: error.localizedDescription, style: .critical)
@@ -421,9 +423,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                  style: .warning)
             return
         }
-        transcribeItem.isEnabled = false
+        isTranscribing = true
+        updateTranscribeItemState()
         status.title = "Transcribing…"
-        progressPanel.show("Loading models…")
+        iconAnimator.startTranscribing()
         let stem = sourcesURL.deletingPathExtension().lastPathComponent
             .replacingOccurrences(of: "-sources", with: "")
         let outURL = sourcesURL.deletingLastPathComponent()
@@ -433,13 +436,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             progress: { [weak self] phase, _ in
                 DispatchQueue.main.async {
                     self?.status.title = "Transcribing… \(phase)"
-                    self?.progressPanel.update(phase)
                 }
             },
             completion: { [weak self] result in
                 DispatchQueue.main.async {
-                    self?.progressPanel.hide()
-                    self?.transcribeItem.isEnabled = true
+                    self?.isTranscribing = false
+                    self?.iconAnimator.setIdle()
                     switch result {
                     case .success(let segs):
                         let text = segs.map {
@@ -448,8 +450,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         do {
                             try text.write(to: outURL, atomically: true, encoding: .utf8)
                             self?.status.title = "Transcript saved \(outURL.lastPathComponent)"
-                            self?.show(title: "Transcription finished",
-                                       message: "\(outURL.path)\n\n\(text)", style: .informational)
                         } catch {
                             self?.status.title = "Transcript write failed"
                             self?.show(title: "Could not save transcript",
@@ -460,6 +460,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         self?.show(title: "Transcription failed",
                                    message: "\(error)", style: .critical)
                     }
+                    self?.updateTranscribeItemState()
                 }
             })
     }

@@ -76,8 +76,9 @@ Engine: [FluidAudio](https://github.com/FluidInference/FluidAudio) — NVIDIA
 Parakeet TDT (CoreML/Apple Neural Engine) for ASR + an offline VBx (pyannote
 segmentation + WeSpeaker + VBx clustering) diarizer. Models (~1 GB) download
 from HuggingFace on first transcription and cache locally; inference is
-on-device. A small floating progress panel shows the phase. Diarizing the
-per-source channels (not the summed mix) is what makes labels correct even when
+on-device. The menu-bar icon animates — a red pulsing circle while recording
+and a blue pulsing bubble while transcribing — and the status line shows the
+phase. Diarizing the per-source channels (not the summed mix) is what makes labels correct even when
 speakers overlap.
 
 ## Validated workflow
