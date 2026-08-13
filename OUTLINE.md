@@ -76,10 +76,18 @@ Engine: [FluidAudio](https://github.com/FluidInference/FluidAudio) — NVIDIA
 Parakeet TDT (CoreML/Apple Neural Engine) for ASR + an offline VBx (pyannote
 segmentation + WeSpeaker + VBx clustering) diarizer. Models (~1 GB) download
 from HuggingFace on first transcription and cache locally; inference is
-on-device. The menu-bar icon animates — a red pulsing circle while recording
-and a blue pulsing bubble while transcribing — and the status line shows the
-phase. Diarizing the per-source channels (not the summed mix) is what makes labels correct even when
-speakers overlap.
+on-device.
+
+UI: the menu-bar icon animates with stationary fill-pulses — a slow pulse on
+record.circle while recording and a faster pulse on text.bubble while
+transcribing (monochrome, no rotation). The status line reports progress and
+results — there are no success modals. "Transcribe Last Recording" is grayed
+out until a recording exists (NSMenu.autoenablesItems is disabled so the manual
+enabled state sticks). Sides or segments with no speech (e.g. a recording with
+no remote party) are skipped rather than failing the transcription.
+
+Diarizing the per-source channels (not the summed mix) is what makes labels
+correct even when speakers overlap.
 
 ## Validated workflow
 
