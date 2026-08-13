@@ -91,13 +91,21 @@ private final class DeviceCapture {
         self.deviceName = deviceName
     }
 
-    func start(writingTo url: URL, voiceProcessing: Bool = false) throws {
+    func start(writingTo url: URL) throws {
         guard let deviceID = AudioDevices.id(named: deviceName) else {
             throw RecorderError.missingDevice(deviceName)
         }
 
+        // Capture the device raw, without Apple Voice Processing. Voice
+        // Processing is a full-duplex acoustic echo canceller that needs a
+        // valid echo reference (audio playing out the speakers). A capture-
+        // only recorder provides none, so the AEC cancels the microphone's
+        // own signal and deletes the local voice from the recording. The
+        // physical microphone and BlackHole are therefore both opened as
+        // plain input-only streams. Voice Isolation for the live call is
+        // owned by the meeting application and the system mic modes in
+        // Control Center, not by this recorder.
         let input = engine.inputNode
-        try input.setVoiceProcessingEnabled(voiceProcessing)
         guard let audioUnit = input.audioUnit else {
             throw RecorderError.invalidFormat(deviceName)
         }
@@ -175,16 +183,6 @@ private final class MeetingRecorder {
     private var meetingURL: URL?
     private(set) var destinationURL: URL?
     private(set) var isRecording = false
-    var useVoiceProcessing = UserDefaults.standard.object(
-        forKey: "useAppleVoiceProcessing"
-    ) as? Bool ?? true {
-        didSet {
-            UserDefaults.standard.set(
-                useVoiceProcessing,
-                forKey: "useAppleVoiceProcessing"
-            )
-        }
-    }
 
     var diagnosticSummary: String {
         "micFrames=\(mic.frameCount), micPeak=\(mic.peak), meetingFrames=\(meeting.frameCount), meetingPeak=\(meeting.peak)"
@@ -219,7 +217,7 @@ private final class MeetingRecorder {
 
             try meeting.start(writingTo: newMeetingURL)
             do {
-                try mic.start(writingTo: newMicURL, voiceProcessing: useVoiceProcessing)
+                try mic.start(writingTo: newMicURL)
             } catch {
                 meeting.stop()
                 throw error
@@ -309,7 +307,7 @@ private final class MeetingRecorder {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
     private let status = NSMenuItem(title: "Ready", action: nil, keyEquivalent: "")
@@ -318,23 +316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         action: #selector(toggleRecording),
         keyEquivalent: "r"
     )
-    private lazy var transcribeItem = NSMenuItem(
-        title: "Transcribe Last Recording",
-        action: #selector(transcribeLastRecording),
-        keyEquivalent: "t"
-    )
-    private lazy var voiceProcessingItem = NSMenuItem(
-        title: "Apple Voice Processing",
-        action: #selector(toggleVoiceProcessing),
-        keyEquivalent: ""
-    )
-    private lazy var microphoneModeItem = NSMenuItem(
-        title: "Microphone Mode: Checking…",
-        action: #selector(openMicrophoneModes),
-        keyEquivalent: ""
-    )
     private let recorder = MeetingRecorder()
-    private var lastRecording: URL?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem.button?.image = NSImage(
@@ -342,21 +324,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             accessibilityDescription: "Meeting Recorder"
         )
         statusItem.menu = menu
-        menu.delegate = self
         status.isEnabled = false
         recordItem.target = self
-        transcribeItem.target = self
-        voiceProcessingItem.target = self
-        microphoneModeItem.target = self
-        transcribeItem.isEnabled = false
 
         menu.addItem(status)
         menu.addItem(.separator())
         menu.addItem(recordItem)
-        menu.addItem(transcribeItem)
-        menu.addItem(.separator())
-        menu.addItem(voiceProcessingItem)
-        menu.addItem(microphoneModeItem)
         menu.addItem(.separator())
         let quit = NSMenuItem(
             title: "Quit Meeting Recorder",
@@ -364,52 +337,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             keyEquivalent: "q"
         )
         menu.addItem(quit)
-        refreshMicrophoneMode()
-    }
-
-    func menuWillOpen(_ menu: NSMenu) {
-        refreshMicrophoneMode()
-    }
-
-    @objc private func toggleVoiceProcessing() {
-        guard !recorder.isRecording else { return }
-        recorder.useVoiceProcessing.toggle()
-        voiceProcessingItem.state = recorder.useVoiceProcessing ? .on : .off
-        if recorder.useVoiceProcessing {
-            show(
-                title: "Apple Voice Processing enabled",
-                message: "The next recording will use Apple's voice-processing audio path. Select the microphone mode from the Microphone Mode menu item.",
-                style: .informational
-            )
-            AVCaptureDevice.showSystemUserInterface(.microphoneModes)
-        }
-    }
-
-    @objc private func openMicrophoneModes() {
-        AVCaptureDevice.showSystemUserInterface(.microphoneModes)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-            self?.refreshMicrophoneMode()
-        }
-    }
-
-    private func refreshMicrophoneMode() {
-        let preferred = Self.microphoneModeName(AVCaptureDevice.preferredMicrophoneMode)
-        let active = Self.microphoneModeName(AVCaptureDevice.activeMicrophoneMode)
-        microphoneModeItem.title = preferred == active
-            ? "Microphone Mode: \(active)…"
-            : "Microphone Mode: \(active) (preferred: \(preferred))…"
-        voiceProcessingItem.state = recorder.useVoiceProcessing ? .on : .off
-        voiceProcessingItem.isEnabled = !recorder.isRecording
-        microphoneModeItem.isEnabled = !recorder.isRecording
-    }
-
-    private static func microphoneModeName(_ mode: AVCaptureDevice.MicrophoneMode) -> String {
-        switch mode {
-        case .standard: return "Standard"
-        case .voiceIsolation: return "Voice Isolation"
-        case .wideSpectrum: return "Wide Spectrum"
-        @unknown default: return "Unknown"
-        }
     }
 
     @objc private func toggleRecording() {
@@ -420,15 +347,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard let self else { return }
                 self.recordItem.isEnabled = true
                 self.recordItem.title = "Start Meeting Recording…"
-                self.refreshMicrophoneMode()
                 self.statusItem.button?.image = NSImage(
                     systemSymbolName: "record.circle",
                     accessibilityDescription: "Meeting Recorder"
                 )
                 switch result {
                 case .success(let url):
-                    self.lastRecording = url
-                    self.transcribeItem.isEnabled = true
                     self.status.title = "Saved \(url.lastPathComponent)"
                     self.show(title: "Recording saved", message: "\(url.path)\n\n\(self.recorder.diagnosticSummary)", style: .informational)
                 case .failure(let error):
@@ -459,57 +383,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     systemSymbolName: "record.circle.fill",
                     accessibilityDescription: "Recording in progress"
                 )
-                self.voiceProcessingItem.isEnabled = false
-                self.microphoneModeItem.isEnabled = false
             case .failure(let error):
                 self.status.title = "Could not start"
-                self.refreshMicrophoneMode()
                 self.show(title: "Recording could not start", message: error.localizedDescription, style: .critical)
             }
         }
-    }
-
-    @objc private func transcribeLastRecording() {
-        guard let lastRecording else { return }
-        guard let script = transcriptionScript() else { return }
-        let process = Process()
-        process.executableURL = script
-        process.arguments = [lastRecording.path]
-        process.currentDirectoryURL = lastRecording.deletingLastPathComponent()
-        do {
-            try process.run()
-            status.title = "Transcription started for \(lastRecording.lastPathComponent)"
-        } catch {
-            show(title: "Transcription could not start", message: error.localizedDescription, style: .critical)
-        }
-    }
-
-    private func transcriptionScript() -> URL? {
-        let preferenceKey = "transcriptionScriptPath"
-        if let savedPath = UserDefaults.standard.string(forKey: preferenceKey),
-           FileManager.default.isExecutableFile(atPath: savedPath) {
-            return URL(fileURLWithPath: savedPath)
-        }
-
-        let panel = NSOpenPanel()
-        panel.title = "Choose a transcription script"
-        panel.message = "Select an executable script that accepts the M4A path as its first argument. This choice is saved locally."
-        panel.prompt = "Choose Script"
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        NSApp.activate(ignoringOtherApps: true)
-        guard panel.runModal() == .OK, let selected = panel.url else { return nil }
-        guard FileManager.default.isExecutableFile(atPath: selected.path) else {
-            show(
-                title: "Script is not executable",
-                message: "Make the script executable with chmod +x, then choose it again.",
-                style: .critical
-            )
-            return nil
-        }
-        UserDefaults.standard.set(selected.path, forKey: preferenceKey)
-        return selected
     }
 
     private func show(title: String, message: String, style: NSAlert.Style) {
