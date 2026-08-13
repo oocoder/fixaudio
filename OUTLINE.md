@@ -4,8 +4,11 @@
 
 Meeting Recorder replaces QuickTime's audio-only meeting capture workflow. It
 opens the physical microphone and BlackHole 2ch as independent input-only
-streams, writes temporary lossless captures, and combines them into a centered
-stereo AAC M4A after recording stops.
+streams, writes temporary lossless captures, and encodes a centered stereo AAC
+M4A plus a per-source (L=mic/R=remote) M4A after recording stops. It also
+transcribes on-device: the "Transcribe Last Recording" menu action runs
+FluidAudio (Parakeet ASR + offline VBx diarization) on the per-source file and
+writes a speaker-attributed `<stem>.txt`.
 
 The design deliberately avoids a `Microphone + BlackHole` aggregate input.
 Testing showed that QuickTime could open the physical microphone directly while
@@ -57,6 +60,26 @@ flowchart LR
     per-channel separation is the authoritative input for speaker-attributed
     transcription.
 
+## Transcription
+
+The **Transcribe Last Recording** menu action transcribes the most recent
+recording on-device, in-process (no external script/Python):
+
+- Input: `<stem>-sources.m4a` (L = mic, R = remote); ffmpeg splits it into two
+  16 kHz mono files.
+- mic side → Parakeet ASR → labeled "You" (single speaker).
+- remote side → offline VBx diarization (no speaker cap) + Parakeet ASR per
+  segment → "Remote_A/B/…".
+- Segments are merged by timestamp and written to `<stem>.txt`.
+
+Engine: [FluidAudio](https://github.com/FluidInference/FluidAudio) — NVIDIA
+Parakeet TDT (CoreML/Apple Neural Engine) for ASR + an offline VBx (pyannote
+segmentation + WeSpeaker + VBx clustering) diarizer. Models (~1 GB) download
+from HuggingFace on first transcription and cache locally; inference is
+on-device. A small floating progress panel shows the phase. Diarizing the
+per-source channels (not the summed mix) is what makes labels correct even when
+speakers overlap.
+
 ## Validated workflow
 
 The following path has been validated with a meeting running on two devices:
@@ -67,7 +90,9 @@ The following path has been validated with a meeting running on two devices:
    independent raw streams.
 4. Local microphone mute/unmute during recording.
 5. Remote participant audio captured through BlackHole.
-6. Stereo M4A produced without restarting Core Audio.
+6. Centered M4A + per-source M4A produced without restarting Core Audio.
+7. In-app transcription (Parakeet + VBx on the per-source file) → correct
+   You/Remote labels, including overlapping speech.
 
 ## Known limitations
 
@@ -77,6 +102,8 @@ The following path has been validated with a meeting running on two devices:
   `<stem>-sources.m4a` (L=mic/R=remote, for transcription). The temporary
   directory is removed after a successful encode. A failed encode leaves it for
   recovery.
+- First transcription downloads ~1 GB of FluidAudio models from HuggingFace
+  (cached thereafter); inference is on-device on the Neural Engine.
 - The menu reports recording state but does not yet show independent live level
   meters for local and remote sources.
 - Ad-hoc builds can lose macOS privacy authorization after recompilation. Use a
@@ -93,6 +120,8 @@ The following path has been validated with a meeting running on two devices:
 - Configurable output format and mix levels.
 - Optional source-separated sidecar tracks for diagnostics.
 - Signed and notarized release packaging.
+- Multi-party (4+) diarization validation; Sortformer/LS-EEND engine options.
+- Optional live transcription preview (streaming ASR + diarization).
 - Automated tests for M4A finalization and device-loss recovery.
 
 Screen/video capture is intentionally out of scope for the current audio-only

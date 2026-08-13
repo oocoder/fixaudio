@@ -7,12 +7,18 @@ let package = Package(
     products: [
         .executable(name: "MeetingRecorder", targets: ["MeetingRecorder"]),
     ],
+    dependencies: [
+        // Native on-device ASR + diarization (Parakeet CoreML/ANE + offline VBx).
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.12.4"),
+    ],
     targets: [
-        // The meeting-recorder menu-bar app. Audio capture + the centered/sources
-        // M4A encode. Transcription (FluidAudio) is added in a later step.
+        // The meeting-recorder menu-bar app: audio capture + centered/sources
+        // M4A encode + in-app per-source transcription (FluidAudio).
         // Swift 5 language mode for now: the recorder pre-dates Swift 6 strict
-        // concurrency (AppKit main-actor APIs). FluidAudio still builds in Swift 6.
-        .executableTarget(name: "MeetingRecorder", path: "src/MeetingRecorder",
+        // concurrency (AppKit main-actor APIs). FluidAudio builds in Swift 6.
+        .executableTarget(name: "MeetingRecorder",
+                          dependencies: [.product(name: "FluidAudio", package: "FluidAudio")],
+                          path: "src/MeetingRecorder",
                           swiftSettings: [.swiftLanguageMode(.v5)]),
     ]
 )
