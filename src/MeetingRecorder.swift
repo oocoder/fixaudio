@@ -246,37 +246,10 @@ private final class MeetingRecorder {
         let destination = destinationURL
         export(microphone: micURL, meeting: meetingURL, destination: destination) { [weak self] result in
             if case .success = result, let temp = self?.temporaryDirectory {
-                // Keep the per-source captures (lossless .caf) next to the M4A so
-                // transcription can use each side separately: microphone = local
-                // voice, meeting = the remote/BlackHole side. Diarizing the mixed
-                // M4A is unreliable when speakers overlap, so the per-source files
-                // are the authoritative input for speaker-attributed transcription.
-                self?.retainSources(mic: micURL, meeting: meetingURL, beside: destination)
                 try? FileManager.default.removeItem(at: temp)
             }
             self?.temporaryDirectory = nil
             completion(result.map { destination })
-        }
-    }
-
-    /// Copies the per-source captures next to the mixed M4A so they survive the
-    /// temporary-directory cleanup. Best-effort: a copy failure is logged but does
-    /// not fail the recording (the mix already succeeded).
-    private func retainSources(mic: URL, meeting: URL, beside destination: URL) {
-        let dir = destination.deletingLastPathComponent()
-        let stem = destination.deletingPathExtension().lastPathComponent
-        let pairs: [(URL, URL)] = [
-            (mic, dir.appendingPathComponent("\(stem)-mic.caf")),
-            (meeting, dir.appendingPathComponent("\(stem)-remote.caf")),
-        ]
-        for (src, dst) in pairs {
-            do {
-                try? FileManager.default.removeItem(at: dst)
-                try FileManager.default.copyItem(at: src, to: dst)
-            } catch {
-                NSLog("Meeting Recorder could not retain source %@: %@",
-                      src.lastPathComponent, error.localizedDescription)
-            }
         }
     }
 
@@ -294,7 +267,14 @@ private final class MeetingRecorder {
             return
         }
 
+        // Centered mix for playback + a 2-channel (L=mic, R=remote) file for
+        // per-source transcription. Both written in one ffmpeg pass.
+        let stem = destination.deletingPathExtension().lastPathComponent
+        let sourcesURL = destination.deletingLastPathComponent()
+            .appendingPathComponent("\(stem)-sources.m4a")
+
         try? FileManager.default.removeItem(at: destination)
+        try? FileManager.default.removeItem(at: sourcesURL)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: ffmpegPath)
         process.arguments = [
@@ -302,13 +282,13 @@ private final class MeetingRecorder {
             "-i", micURL.path,
             "-i", meetingURL.path,
             "-filter_complex",
-            "[0:a]aformat=sample_rates=48000:channel_layouts=stereo[local];" +
-            "[1:a]aformat=sample_rates=48000:channel_layouts=stereo[remote];" +
-            "[local][remote]amix=inputs=2:duration=longest:normalize=0," +
-            "alimiter=limit=0.95[out]",
-            "-map", "[out]",
-            "-c:a", "aac", "-b:a", "192k",
-            destination.path
+            "[0:a]aformat=sample_rates=48000:channel_layouts=mono[m0];" +
+            "[1:a]aformat=sample_rates=48000:channel_layouts=mono[r0];" +
+            "[m0]asplit=2[m1][m2];[r0]asplit=2[r1][r2];" +
+            "[m1][r1]amix=inputs=2:duration=longest:normalize=0,aformat=channel_layouts=stereo,alimiter=limit=0.95[mix];" +
+            "[m2][r2]amerge=inputs=2,aformat=channel_layouts=stereo,alimiter=limit=0.95[src]",
+            "-map", "[mix]", "-c:a", "aac", "-b:a", "192k", destination.path,
+            "-map", "[src]", "-c:a", "aac", "-b:a", "192k", sourcesURL.path
         ]
         let errorPipe = Pipe()
         process.standardError = errorPipe
@@ -318,7 +298,8 @@ private final class MeetingRecorder {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             DispatchQueue.main.async {
                 if process.terminationStatus == 0,
-                   FileManager.default.fileExists(atPath: destination.path) {
+                   FileManager.default.fileExists(atPath: destination.path),
+                   FileManager.default.fileExists(atPath: sourcesURL.path) {
                     completion(.success(()))
                 } else {
                     completion(.failure(RecorderError.exportFailed(
