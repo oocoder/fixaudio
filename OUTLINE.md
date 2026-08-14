@@ -41,7 +41,8 @@ flowchart LR
 
 ## Capture behavior
 
-- `External Microphone` is captured through its own `AVAudioEngine`.
+- The chosen microphone (selectable via the Microphone menu; default
+  `External Microphone`) is captured through its own `AVAudioEngine`.
 - `BlackHole 2ch` is captured through a separate `AVAudioEngine`.
 - Both devices are opened as plain input-only streams. The recorder does not
   enable Apple Voice Processing on its capture path, because Voice Processing
@@ -129,7 +130,9 @@ The following path has been validated with a meeting running on two devices:
 
 ## Known limitations
 
-- Audio devices are currently located by fixed English display names.
+- The microphone is selectable from the Microphone menu (any available input
+  device; no silent fallback — Start is grayed out if the chosen mic is
+  unavailable). BlackHole 2ch (the remote side) is still located by a fixed name.
 - BlackHole and ffmpeg must be installed separately.
 - The recorder writes `<stem>.m4a` (centered, for playback) and
   `<stem>-sources.m4a` (L=mic/R=remote, for transcription). The temporary
@@ -147,7 +150,7 @@ The following path has been validated with a meeting running on two devices:
 
 ## Backlog
 
-- Device picker and resilient device-UID persistence.
+- Resilient device-UID persistence (survive device re-enumeration).
 - Independent local/remote level indicators and stalled-flow detection.
 - Recording elapsed time in the status menu.
 - Configurable output format and mix levels.

@@ -17,9 +17,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         action: #selector(transcribeLastRecording),
         keyEquivalent: "t"
     )
+    private lazy var microphoneItem: NSMenuItem = {
+        let item = NSMenuItem(title: "Microphone: …", action: nil, keyEquivalent: "")
+        item.submenu = NSMenu()
+        return item
+    }()
     private var lastSourcesURL: URL?
     private var iconAnimator: StatusIconAnimator!
     private var isTranscribing = false
+
+    /// The chosen mic device name, remembered across launches. No silent
+    /// fallback: if it isn't currently available, Start is grayed out and the
+    /// Microphone item shows "(none)" until the user picks an available one.
+    private var micDeviceName: String {
+        get { UserDefaults.standard.string(forKey: "micDeviceName") ?? "External Microphone" }
+        set { UserDefaults.standard.set(newValue, forKey: "micDeviceName") }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         iconAnimator = StatusIconAnimator(statusItem: statusItem)
@@ -34,6 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(recordItem)
         menu.addItem(transcribeItem)
+        menu.addItem(microphoneItem)
         menu.addItem(.separator())
         let quit = NSMenuItem(
             title: "Quit Meeting Recorder",
@@ -41,16 +55,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             keyEquivalent: "q"
         )
         menu.addItem(quit)
-        updateTranscribeItemState()
+        recorder.micDeviceName = micDeviceName
+        updateMenuStates()
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        updateTranscribeItemState()
+        updateMenuStates()
     }
 
-    private func updateTranscribeItemState() {
+    private func updateMenuStates() {
+        let mics = AudioDevices.inputDeviceNames()
+        let micAvailable = mics.contains(micDeviceName)
         let exists = lastSourcesURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+        if recorder.isRecording {
+            recordItem.isEnabled = !isTranscribing
+        } else {
+            recordItem.isEnabled = !isTranscribing && micAvailable
+        }
         transcribeItem.isEnabled = !isTranscribing && !recorder.isRecording && exists
+        microphoneItem.title = micAvailable ? "Microphone: \(micDeviceName)" : "Microphone: (none)"
+
+        let submenu = NSMenu()
+        if mics.isEmpty {
+            submenu.addItem(NSMenuItem(title: "No microphones available", action: nil, keyEquivalent: ""))
+        } else {
+            for name in mics {
+                let item = NSMenuItem(title: name, action: #selector(chooseMic(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = name
+                item.state = (name == micDeviceName) ? .on : .off
+                submenu.addItem(item)
+            }
+        }
+        microphoneItem.submenu = submenu
+    }
+
+    @objc private func chooseMic(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String else { return }
+        micDeviceName = name
+        recorder.micDeviceName = name
+        updateMenuStates()
     }
 
     @objc private func toggleRecording() {
@@ -59,7 +103,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status.title = "Finishing M4A…"
             recorder.stop { [weak self] result in
                 guard let self else { return }
-                self.recordItem.isEnabled = true
                 self.recordItem.title = "Start Meeting Recording…"
                 self.iconAnimator.setIdle()
                 switch result {
@@ -69,11 +112,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     self.lastSourcesURL = url.deletingLastPathComponent()
                         .appendingPathComponent("\(stem)-sources.m4a")
                     NSLog("Meeting Recorder saved %@ %@", url.path, self.recorder.diagnosticSummary)
-                    self.updateTranscribeItemState()
                 case .failure(let error):
                     self.status.title = "Export failed"
                     self.show(title: "Recording failed", message: error.localizedDescription, style: .critical)
                 }
+                self.updateMenuStates()
             }
             return
         }
@@ -87,9 +130,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         status.title = "Starting capture…"
         recordItem.isEnabled = false
+        recorder.micDeviceName = micDeviceName
         recorder.start(destination: destination) { [weak self] result in
             guard let self else { return }
-            self.recordItem.isEnabled = true
             switch result {
             case .success:
                 self.status.title = "Recording microphone + meeting audio"
@@ -99,6 +142,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.status.title = "Could not start"
                 self.show(title: "Recording could not start", message: error.localizedDescription, style: .critical)
             }
+            self.updateMenuStates()
         }
     }
 
@@ -109,7 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         isTranscribing = true
-        updateTranscribeItemState()
+        updateMenuStates()
         status.title = "Transcribing…"
         iconAnimator.startTranscribing()
         let stem = sourcesURL.deletingPathExtension().lastPathComponent
@@ -145,7 +189,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         self?.show(title: "Transcription failed",
                                    message: "\(error)", style: .critical)
                     }
-                    self?.updateTranscribeItemState()
+                    self?.updateMenuStates()
                 }
             })
     }
