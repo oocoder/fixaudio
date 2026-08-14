@@ -4,9 +4,16 @@ import Foundation
 /// Owns the two independent captures (mic + BlackHole) and the ffmpeg encode
 /// into a centered M4A + a per-source (L=mic/R=remote) M4A.
 final class MeetingRecorder {
-    private let mic = DeviceCapture(deviceName: "External Microphone")
-    private let meeting = DeviceCapture(deviceName: "BlackHole 2ch")
+    var micDeviceName: String
+    private var mic: DeviceCapture
+    private var meeting: DeviceCapture
     private var temporaryDirectory: URL?
+
+    init(micDeviceName: String = "External Microphone") {
+        self.micDeviceName = micDeviceName
+        self.mic = DeviceCapture(deviceName: micDeviceName)
+        self.meeting = DeviceCapture(deviceName: "BlackHole 2ch")
+    }
     private var micURL: URL?
     private var meetingURL: URL?
     private(set) var destinationURL: URL?
@@ -42,6 +49,10 @@ final class MeetingRecorder {
             try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
             let newMicURL = temp.appendingPathComponent("microphone.caf")
             let newMeetingURL = temp.appendingPathComponent("meeting.caf")
+
+            // (Re)create captures with the current chosen mic + BlackHole.
+            mic = DeviceCapture(deviceName: micDeviceName)
+            meeting = DeviceCapture(deviceName: "BlackHole 2ch")
 
             try meeting.start(writingTo: newMeetingURL)
             do {

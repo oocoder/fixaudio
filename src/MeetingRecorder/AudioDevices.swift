@@ -1,7 +1,7 @@
 import CoreAudio
 import Foundation
 
-/// Locates Core Audio devices by display name.
+/// Locates Core Audio devices by display name and enumerates available mics.
 enum AudioDevices {
     static func id(named wantedName: String) -> AudioDeviceID? {
         var address = AudioObjectPropertyAddress(
@@ -22,6 +22,56 @@ enum AudioDevices {
             return nil
         }
         return devices.first { name(of: $0) == wantedName }
+    }
+
+    /// Names of currently-available input devices suitable as a microphone:
+    /// has input streams, is NOT an aggregate (aggregates reintroduce the
+    /// Core Audio stall the recorder avoids, and "Meeting Recording" bundles
+    /// BlackHole), and is NOT "BlackHole 2ch" (the remote side).
+    static func inputDeviceNames() -> [String] {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var byteCount: UInt32 = 0
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &byteCount) == noErr else {
+            return []
+        }
+        var devices = [AudioDeviceID](
+            repeating: 0,
+            count: Int(byteCount) / MemoryLayout<AudioDeviceID>.size
+        )
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &byteCount, &devices) == noErr else {
+            return []
+        }
+        return devices.compactMap { d -> String? in
+            guard hasInput(d), !isAggregate(d), let nm = name(of: d) else { return nil }
+            return nm == "BlackHole 2ch" ? nil : nm
+        }
+    }
+
+    private static func hasInput(_ device: AudioDeviceID) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreamConfiguration,
+            mScope: kAudioDevicePropertyScopeInput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var size: UInt32 = 0
+        return AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr && size > 0
+    }
+
+    private static func isAggregate(_ device: AudioDeviceID) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioObjectPropertyClass,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var cls: AudioClassID = 0
+        var size = UInt32(MemoryLayout<AudioClassID>.size)
+        return AudioObjectGetPropertyData(device, &address, 0, nil, &size, &cls) == noErr
+            && cls == kAudioAggregateDeviceClassID
     }
 
     private static func name(of device: AudioDeviceID) -> String? {
