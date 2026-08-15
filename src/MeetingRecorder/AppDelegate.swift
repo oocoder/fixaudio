@@ -17,6 +17,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         action: #selector(transcribeLastRecording),
         keyEquivalent: "t"
     )
+    private lazy var transcribeAnyItem = NSMenuItem(
+        title: "Transcribe…",
+        action: #selector(transcribeAnyFile),
+        keyEquivalent: ""
+    )
     private lazy var microphoneItem: NSMenuItem = {
         let item = NSMenuItem(title: "Microphone: …", action: nil, keyEquivalent: "")
         item.submenu = NSMenu()
@@ -39,11 +44,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         status.isEnabled = false
         recordItem.target = self
         transcribeItem.target = self
+        transcribeAnyItem.target = self
 
         menu.addItem(status)
         menu.addItem(.separator())
         menu.addItem(recordItem)
         menu.addItem(transcribeItem)
+        menu.addItem(transcribeAnyItem)
         menu.addItem(microphoneItem)
         menu.addItem(.separator())
         let quit = NSMenuItem(
@@ -73,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             recordItem.isEnabled = !isTranscribing && micAvailable
         }
         transcribeItem.isEnabled = !isTranscribing && !recorder.isRecording && exists
+        transcribeAnyItem.isEnabled = !isTranscribing && !recorder.isRecording
         microphoneItem.title = micAvailable ? "Microphone: \(micDeviceName)" : "Microphone: (none)"
 
         let submenu = NSMenu()
@@ -157,6 +165,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status.title = "Nothing to transcribe — record a meeting first"
             return
         }
+        transcribeFile(sourcesURL)
+    }
+
+    @objc private func transcribeAnyFile() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a recording to transcribe"
+        panel.message = "Select a .m4a file (a -sources.m4a file is preferred for speaker separation)"
+        panel.prompt = "Transcribe"
+        panel.allowedContentTypes = [.mpeg4Audio]
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        transcribeFile(url)
+    }
+
+    private func transcribeFile(_ sourcesURL: URL) {
         isTranscribing = true
         updateMenuStates()
         status.title = "Transcribing…"
