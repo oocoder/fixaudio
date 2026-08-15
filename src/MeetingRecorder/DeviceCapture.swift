@@ -18,7 +18,7 @@ final class DeviceCapture {
     }
 
     func start(writingTo url: URL) throws {
-        guard let deviceID = AudioDevices.id(named: deviceName) else {
+        guard let deviceID = AudioDevices.inputID(named: deviceName) else {
             throw RecorderError.missingDevice(deviceName)
         }
 
