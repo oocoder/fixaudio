@@ -49,6 +49,31 @@ enum AudioDevices {
         return devices.first { name(of: $0) == wantedName && hasInput($0) }
     }
 
+    /// The current system default input device.
+    static func defaultInputDeviceID() -> AudioDeviceID? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var id: AudioDeviceID = 0
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &id) == noErr else { return nil }
+        return id
+    }
+
+    /// Set the system default input device (restored after recording).
+    static func setDefaultInputDevice(_ id: AudioDeviceID) throws {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var dev = id
+        let status = AudioObjectSetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, UInt32(MemoryLayout<AudioDeviceID>.size), &dev)
+        guard status == noErr else { throw RecorderError.coreAudio("Setting default input device", status) }
+    }
+
     /// Names of currently-available **microphones only**: devices that actually
     /// have input CHANNELS (> 0), are not aggregates (aggregates reintroduce the
     /// Core Audio stall the recorder avoids, and "Meeting Recording" bundles
@@ -112,6 +137,22 @@ enum AudioDevices {
         var size = UInt32(MemoryLayout<AudioClassID>.size)
         return AudioObjectGetPropertyData(device, &address, 0, nil, &size, &cls) == noErr
             && cls == kAudioAggregateDeviceClassID
+    }
+
+    /// True if the device uses Bluetooth transport. Bluetooth headsets use a
+    /// 16 kHz HFP profile that conflicts with simultaneous BlackHole capture
+    /// (installTap crashes or setDefaultInputDevice fails). This affects all
+    /// Bluetooth headsets including AirPods.
+    static func isBluetooth(_ device: AudioDeviceID) -> Bool {
+        var transport: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyTransportType,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        return AudioObjectGetPropertyData(device, &address, 0, nil, &size, &transport) == noErr
+            && transport == kAudioDeviceTransportTypeBluetooth
     }
 
     private static func name(of device: AudioDeviceID) -> String? {
