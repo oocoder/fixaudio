@@ -70,8 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func updateMenuStates() {
         let mics = AudioDevices.inputDeviceNames()
         let micID = AudioDevices.id(named: micDeviceName)
-        let isBt = micID.map { AudioDevices.isBluetooth($0) } ?? false
-        let micAvailable = mics.contains(micDeviceName) && !isBt
+        let micAvailable = mics.contains(micDeviceName)
         let exists = lastSourcesURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
 
         if recorder.isRecording {
@@ -92,9 +91,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 item.target = self
                 item.representedObject = name
                 if let id = AudioDevices.id(named: name), AudioDevices.isBluetooth(id) {
-                    item.title = "\(name)  (Bluetooth — not compatible)"
-                    item.isEnabled = false
-                    item.state = .off
+                    item.title = "\(name)  (Bluetooth — AUHAL)"
+                    item.state = (name == micDeviceName) ? .on : .off
                 } else {
                     item.state = (name == micDeviceName) ? .on : .off
                 }
