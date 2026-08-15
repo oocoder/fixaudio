@@ -100,13 +100,14 @@ if [ -z "$OUTPUT" ]; then
     OUTPUT="${STEM}.txt"
 fi
 
-# Run — capture to temp file (avoids pipe buffering that makes it look stuck)
+# Run — stderr goes to terminal (real-time progress), stdout to temp file
+# (pipes cause block buffering; this avoids them)
 TMP=$(mktemp)
-echo "Transcribing…" >&2
-"$NT_BIN" "$INPUT" > "$TMP" 2>&1
+echo "Transcribing… (loading models, ~10-20 seconds)" >&2
+"$NT_BIN" "$INPUT" 2>&2 1>"$TMP"
 echo "" >&2
 cat "$TMP"
-# Extract only transcript lines (between "--- transcript ---" and "done.") to the output file
+# Extract only transcript lines (between "--- transcript ---" and "done.")
 awk '/^--- transcript ---/{p=1;next} /^done\./{p=0} p' "$TMP" > "$OUTPUT"
 rm -f "$TMP"
 echo "" >&2
