@@ -68,7 +68,7 @@ final class MeetingRecorder {
                 mic = DeviceCapture(deviceName: micDeviceName, useSystemDefault: true)
             }
 
-            meeting = DeviceCapture(deviceName: "BlackHole 2ch")
+            meeting = DeviceCapture(deviceName: "BlackHole 2ch", useAUHAL: isBt)
             try meeting.start(writingTo: newMeetingURL)
             do {
                 try mic.start(writingTo: newMicURL)
