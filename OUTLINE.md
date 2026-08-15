@@ -64,7 +64,9 @@ flowchart LR
 ## Transcription
 
 The **Transcribe Last Recording** menu action transcribes the most recent
-recording on-device, in-process (no external script/Python):
+recording on-device, in-process (no external script/Python). The **Transcribe…**
+menu action opens a file picker to transcribe any `.m4a` file (not just the
+last recording):
 
 - Input: `<stem>-sources.m4a` (L = mic, R = remote); ffmpeg splits it into two
   16 kHz mono files.
@@ -72,6 +74,10 @@ recording on-device, in-process (no external script/Python):
 - remote side → offline VBx diarization (no speaker cap) + Parakeet ASR per
   segment → "Remote_A/B/…".
 - Segments are merged by timestamp and written to `<stem>.txt`.
+
+CLI: `nt <file.m4a>` transcribes any recording from the command line. `nt
+<file.m4a> -o <out.txt>` specifies the output file. `nt` auto-builds
+`experiments/native-transcriber` on first run and caches the binary.
 
 Engine: [FluidAudio](https://github.com/FluidInference/FluidAudio) — NVIDIA
 Parakeet TDT (CoreML/Apple Neural Engine) for ASR + an offline VBx (pyannote
