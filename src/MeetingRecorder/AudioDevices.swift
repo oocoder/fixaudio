@@ -24,6 +24,31 @@ enum AudioDevices {
         return devices.first { name(of: $0) == wantedName }
     }
 
+    /// Like id(named:) but returns only a device that actually has input
+    /// channels. Bluetooth headsets expose two entries with the same name
+    /// (A2DP output-only + HFP with a mic); id(named:) may pick the A2DP one,
+    /// which can't be used as an input — this picks the one with input.
+    static func inputID(named wantedName: String) -> AudioDeviceID? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var byteCount: UInt32 = 0
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &byteCount) == noErr else {
+            return nil
+        }
+        var devices = [AudioDeviceID](
+            repeating: 0,
+            count: Int(byteCount) / MemoryLayout<AudioDeviceID>.size
+        )
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &byteCount, &devices) == noErr else {
+            return nil
+        }
+        return devices.first { name(of: $0) == wantedName && hasInput($0) }
+    }
+
     /// Names of currently-available **microphones only**: devices that actually
     /// have input CHANNELS (> 0), are not aggregates (aggregates reintroduce the
     /// Core Audio stall the recorder avoids, and "Meeting Recording" bundles
