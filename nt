@@ -93,9 +93,14 @@ if [ ! -f "$NT_BIN" ]; then
     }
 fi
 
-# Run
-if [ -n "$OUTPUT" ]; then
-    "$NT_BIN" "$INPUT" 2>/dev/null | tee "$OUTPUT"
-else
-    "$NT_BIN" "$INPUT"
+# Default output: <stem>.txt next to the input file
+if [ -z "$OUTPUT" ]; then
+    STEM="${INPUT%.*}"
+    STEM="${STEM%-sources}"
+    OUTPUT="${STEM}.txt"
 fi
+
+# Run — print progress to stderr, save only transcript lines to the file
+"$NT_BIN" "$INPUT" 2>&2 | tee /dev/stderr | awk '/^--- transcript ---/{p=1;next} /^done\./{p=0} p' > "$OUTPUT"
+echo "" >&2
+echo "Saved to: $OUTPUT" >&2
