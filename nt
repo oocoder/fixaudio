@@ -20,9 +20,9 @@ Usage:
   nt --version               Show version
   nt --help                  Show this help
 
-The input can be any audio file. A -sources.m4a file (L=mic, R=remote)
-is preferred for speaker separation. The output is a speaker-attributed
-transcript with timestamps.
+If <file.m4a> has a matching <stem>-sources.m4a (L=mic, R=remote),
+nt automatically uses the -sources file for speaker separation.
+The output is a speaker-attributed transcript with timestamps.
 EOF
 }
 
@@ -65,6 +65,18 @@ fi
 if [ ! -f "$INPUT" ]; then
     echo "error: file not found: $INPUT" >&2
     exit 1
+fi
+
+# Auto-prefer -sources.m4a for speaker separation.
+# If the user gives foo.m4a and foo-sources.m4a exists, use that instead.
+STEM="${INPUT%.*}"
+EXT="${INPUT##*.}"
+if echo "$STEM" | grep -qv -- '-sources$'; then
+    SOURCES_FILE="${STEM}-sources.${EXT}"
+    if [ -f "$SOURCES_FILE" ]; then
+        echo "Using $SOURCES_FILE (per-source, for speaker separation)" >&2
+        INPUT="$SOURCES_FILE"
+    fi
 fi
 
 # Resolve the project root from the nt script location
