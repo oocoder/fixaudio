@@ -1,0 +1,81 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "audio-unit-capture-arm64-apple-macosx15.0-debug.exe": ["<audio-unit-capture-arm64-apple-macosx15.0-debug.exe>"]
+  "audio-unit-capture-arm64-apple-macosx15.0-debug.module": ["<audio-unit-capture-arm64-apple-macosx15.0-debug.module>"]
+  "main": ["<audio-unit-capture-arm64-apple-macosx15.0-debug.exe>","<audio-unit-capture-arm64-apple-macosx15.0-debug.module>"]
+  "test": ["<audio-unit-capture-arm64-apple-macosx15.0-debug.exe>","<audio-unit-capture-arm64-apple-macosx15.0-debug.module>"]
+default: "main"
+nodes:
+  "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/Sources/audio-unit-capture/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture":
+    is-mutated: true
+commands:
+  "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture-entitlement.plist":
+    tool: write-auxiliary-file
+    inputs: ["<entitlement-plist>","<com.apple.security.get-task-allow>"]
+    outputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture-entitlement.plist"]
+    description: "Write auxiliary file /Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture-entitlement.plist"
+
+  "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/main.swift.o"]
+    outputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture.product/Objects.LinkFileList"
+
+  "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/Sources/audio-unit-capture/main.swift"]
+    outputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/sources"]
+    description: "Write auxiliary file /Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/sources"
+
+  "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"]
+    outputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+
+  "<audio-unit-capture-arm64-apple-macosx15.0-debug.exe>":
+    tool: phony
+    inputs: ["<audio-unit-capture-arm64-apple-macosx15.0-debug.exe-CodeSigning>"]
+    outputs: ["<audio-unit-capture-arm64-apple-macosx15.0-debug.exe>"]
+
+  "<audio-unit-capture-arm64-apple-macosx15.0-debug.module>":
+    tool: phony
+    inputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/main.swift.o","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/Modules/audio_unit_capture.swiftmodule"]
+    outputs: ["<audio-unit-capture-arm64-apple-macosx15.0-debug.module>"]
+
+  "C.audio-unit-capture-arm64-apple-macosx15.0-debug.exe":
+    tool: shell
+    inputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/main.swift.o","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture.product/Objects.LinkFileList"]
+    outputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture"]
+    description: "Linking ./.build/arm64-apple-macosx/debug/audio-unit-capture"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug","-o","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture","-module-name","audio_unit_capture","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-alias","-Xlinker","_audio_unit_capture_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx","-target","arm64-apple-macosx10.13","-Xlinker","-add_ast_path","-Xlinker","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/Modules/audio_unit_capture.swiftmodule","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.4.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
+
+  "C.audio-unit-capture-arm64-apple-macosx15.0-debug.exe-entitlements":
+    tool: shell
+    inputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture-entitlement.plist"]
+    outputs: ["<audio-unit-capture-arm64-apple-macosx15.0-debug.exe-CodeSigning>"]
+    description: "Applying debug entitlements to ./.build/arm64-apple-macosx/debug/audio-unit-capture"
+    args: ["codesign","--force","--sign","-","--entitlements","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture-entitlement.plist","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio-unit-capture"]
+
+  "C.audio-unit-capture-arm64-apple-macosx15.0-debug.module":
+    tool: shell
+    inputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/Sources/audio-unit-capture/main.swift","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/sources"]
+    outputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/main.swift.o","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/Modules/audio_unit_capture.swiftmodule"]
+    description: "Compiling Swift Module 'audio_unit_capture' (1 sources)"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","audio_unit_capture","-emit-dependencies","-emit-module","-emit-module-path","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/Modules/audio_unit_capture.swiftmodule","-output-file-map","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/output-file-map.json","-incremental","-c","@/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/sources","-I","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/Modules","-target","arm64-apple-macosx10.13","-enable-batch-mode","-index-store-path","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/index/store","-Onone","-enable-testing","-j10","-DSWIFT_PACKAGE","-DDEBUG","-module-cache-path","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","audio_unit_capture_main","-swift-version","6","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.4.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.4.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","audio_unit_capture"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/Sources/audio-unit-capture/","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/Package.swift","/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+
