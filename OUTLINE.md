@@ -130,9 +130,10 @@ The following path has been validated with a meeting running on two devices:
 
 ## Known limitations
 
-- The microphone is selectable from the Microphone menu (any available input
-  device; no silent fallback — Start is grayed out if the chosen mic is
-  unavailable). BlackHole 2ch (the remote side) is still located by a fixed name.
+- Bluetooth headsets are not compatible (16 kHz HFP profile conflicts with
+  simultaneous BlackHole capture). Bluetooth devices appear grayed out in the
+  Microphone menu with “(Bluetooth — not compatible)”. This affects all
+  Bluetooth headsets including AirPods. Use a wired headset or the built-in mic.
 - BlackHole and ffmpeg must be installed separately.
 - The recorder writes `<stem>.m4a` (centered, for playback) and
   `<stem>-sources.m4a` (L=mic/R=remote, for transcription). The temporary

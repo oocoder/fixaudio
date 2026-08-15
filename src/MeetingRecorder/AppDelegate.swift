@@ -26,9 +26,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var iconAnimator: StatusIconAnimator!
     private var isTranscribing = false
 
-    /// The chosen mic device name, remembered across launches. No silent
-    /// fallback: if it isn't currently available, Start is grayed out and the
-    /// Microphone item shows "(none)" until the user picks an available one.
     private var micDeviceName: String {
         get { UserDefaults.standard.string(forKey: "micDeviceName") ?? "External Microphone" }
         set { UserDefaults.standard.set(newValue, forKey: "micDeviceName") }
@@ -65,8 +62,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func updateMenuStates() {
         let mics = AudioDevices.inputDeviceNames()
-        let micAvailable = mics.contains(micDeviceName)
+        let micID = AudioDevices.id(named: micDeviceName)
+        let isBt = micID.map { AudioDevices.isBluetooth($0) } ?? false
+        let micAvailable = mics.contains(micDeviceName) && !isBt
         let exists = lastSourcesURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+
         if recorder.isRecording {
             recordItem.isEnabled = !isTranscribing
         } else {
@@ -83,7 +83,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 let item = NSMenuItem(title: name, action: #selector(chooseMic(_:)), keyEquivalent: "")
                 item.target = self
                 item.representedObject = name
-                item.state = (name == micDeviceName) ? .on : .off
+                if let id = AudioDevices.id(named: name), AudioDevices.isBluetooth(id) {
+                    item.title = "\(name)  (Bluetooth — not compatible)"
+                    item.isEnabled = false
+                    item.state = .off
+                } else {
+                    item.state = (name == micDeviceName) ? .on : .off
+                }
                 submenu.addItem(item)
             }
         }
@@ -111,7 +117,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     let stem = url.deletingPathExtension().lastPathComponent
                     self.lastSourcesURL = url.deletingLastPathComponent()
                         .appendingPathComponent("\(stem)-sources.m4a")
-                    NSLog("Meeting Recorder saved %@ %@", url.path, self.recorder.diagnosticSummary)
                 case .failure(let error):
                     self.status.title = "Export failed"
                     self.show(title: "Recording failed", message: error.localizedDescription, style: .critical)
