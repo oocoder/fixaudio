@@ -103,7 +103,10 @@ correct even when speakers overlap.
 - `RecorderError.swift` — error enum.
 - `AudioDevices.swift` — Core Audio device lookup by name.
 - `DeviceCapture.swift` — one `AVAudioEngine` per input device (raw, no Voice
-  Processing).
+  Processing). Includes an AUHAL (`kAudioUnitSubType_HALOutput`) capture path
+  for Bluetooth headsets — bypasses `installTap` via `AURenderCallback`, avoids
+  the AVAudioEngine aggregate that forces HFP mode. Key fix: must set
+  `kAudioUnitProperty_StreamFormat` on `kAudioUnitScope_Output, 1`.
 - `MeetingRecorder.swift` — owns both captures + the ffmpeg encode (centered
   M4A + `-sources.m4a`).
 - `Transcriber.swift` — FluidAudio per-source transcription (Parakeet + offline
@@ -115,6 +118,11 @@ correct even when speakers overlap.
 `experiments/native-transcriber/` — a standalone Swift CLI testbed for the same
 FluidAudio transcription (used to validate per-source diarization; the app
 supersedes it for production use).
+
+`experiments/audio-unit-capture/` — a standalone AUHAL capture experiment that
+proved AudioUnit direct capture works with Bluetooth headsets and BlackHole.
+Key findings: no `installTap` crash, `AudioUnitRender` returns `noErr`, and the
+output-scope `StreamFormat` fix prevents `-50` paramErr.
 
 Build: `Package.swift` (Swift Package Manager, depends on FluidAudio);
 `./build-meeting-recorder.sh` builds + signs `out/Meeting Recorder.app`. Install
@@ -136,10 +144,12 @@ The following path has been validated with a meeting running on two devices:
 
 ## Known limitations
 
-- Bluetooth headsets are not compatible (16 kHz HFP profile conflicts with
-  simultaneous BlackHole capture). Bluetooth devices appear grayed out in the
-  Microphone menu with “(Bluetooth — not compatible)”. This affects all
-  Bluetooth headsets including AirPods. Use a wired headset or the built-in mic.
+- Bluetooth headsets switch to HFP mode (16 kHz mono) during recording — this
+  is a Bluetooth protocol limitation, not an app issue. A2DP (48 kHz stereo)
+  resumes automatically when recording stops. The mic picker labels Bluetooth
+  devices as "(Bluetooth — AUHAL)". Bluetooth capture uses AUHAL
+  (`kAudioUnitSubType_HALOutput`) for both mic and meeting (BlackHole) to avoid
+  AVAudioEngine's aggregate device, which would keep HFP active after stop.
 - BlackHole and ffmpeg must be installed separately.
 - The recorder writes `<stem>.m4a` (centered, for playback) and
   `<stem>-sources.m4a` (L=mic/R=remote, for transcription). The temporary
