@@ -287,10 +287,11 @@ final class DeviceCapture {
         return st
     }
 
-    private func stopAUHAL() {
+private func stopAUHAL() {
         if let au = unit {
             AudioOutputUnitStop(au)
             AudioUnitUninitialize(au)
+            AudioComponentInstanceDispose(au)
         }
         if let ef = extFile {
             ExtAudioFileDispose(ef)
