@@ -1,0 +1,89 @@
+#!/bin/sh
+# nt — transcribe an audio file using native Parakeet ASR + VBx diarization.
+# Usage:
+#   nt <file.m4a>              transcribe one file, output <stem>.txt
+#   nt <file.m4a> -o <out.txt> transcribe to a specific output file
+#   nt --version               show version
+#   nt --help                  show help
+
+set -eu
+
+VERSION="0.15"
+
+show_help() {
+    cat <<EOF
+nt v${VERSION} — native transcription (Parakeet ASR + VBx diarization)
+
+Usage:
+  nt <file.m4a>              Transcribe a file, output <stem>.txt
+  nt <file.m4a> -o <out.txt> Transcribe to a specific output file
+  nt --version               Show version
+  nt --help                  Show this help
+
+The input can be any audio file. A -sources.m4a file (L=mic, R=remote)
+is preferred for speaker separation. The output is a speaker-attributed
+transcript with timestamps.
+EOF
+}
+
+OUTPUT=""
+INPUT=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --version|-v)
+            echo "nt v${VERSION}"
+            exit 0
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -o|--output)
+            OUTPUT="$2"
+            shift 2
+            ;;
+        *)
+            if [ -z "$INPUT" ]; then
+                INPUT="$1"
+            else
+                echo "error: unexpected argument: $1" >&2
+                show_help >&2
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [ -z "$INPUT" ]; then
+    echo "error: no input file specified" >&2
+    show_help >&2
+    exit 1
+fi
+
+if [ ! -f "$INPUT" ]; then
+    echo "error: file not found: $INPUT" >&2
+    exit 1
+fi
+
+# Resolve the project root from the nt script location
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+NT_DIR="$SCRIPT_DIR/experiments/native-transcriber"
+NT_BIN="$NT_DIR/.build/release/native-transcriber"
+
+# Build if needed
+if [ ! -f "$NT_BIN" ]; then
+    echo "Building native-transcriber (first run)…" >&2
+    (cd "$NT_DIR" && swift build -c release 2>&1) || {
+        echo "error: build failed" >&2
+        exit 1
+    }
+fi
+
+# Run
+if [ -n "$OUTPUT" ]; then
+    "$NT_BIN" "$INPUT" 2>/dev/null | tee "$OUTPUT"
+else
+    "$NT_BIN" "$INPUT"
+fi
