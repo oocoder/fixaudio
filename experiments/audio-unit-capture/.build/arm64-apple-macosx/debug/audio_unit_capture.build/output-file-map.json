@@ -1,0 +1,11 @@
+{
+  "": {
+    "swift-dependencies": "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/master.swiftdeps"
+  },
+  "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/Sources/audio-unit-capture/main.swift": {
+    "dependencies": "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/main.d",
+    "object": "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/main.swift.o",
+    "swiftmodule": "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/alexmaldonado/projects/fixaudio/experiments/audio-unit-capture/.build/arm64-apple-macosx/debug/audio_unit_capture.build/main.swiftdeps"
+  }
+}
