@@ -8,7 +8,7 @@
 
 set -eu
 
-VERSION="0.15"
+VERSION="0.16"
 
 show_help() {
     cat <<EOF
@@ -100,7 +100,14 @@ if [ -z "$OUTPUT" ]; then
     OUTPUT="${STEM}.txt"
 fi
 
-# Run — print progress to stderr, save only transcript lines to the file
-"$NT_BIN" "$INPUT" 2>&2 | tee /dev/stderr | awk '/^--- transcript ---/{p=1;next} /^done\./{p=0} p' > "$OUTPUT"
+# Run — capture to temp file (avoids pipe buffering that makes it look stuck)
+TMP=$(mktemp)
+echo "Transcribing…" >&2
+"$NT_BIN" "$INPUT" > "$TMP" 2>&1
+echo "" >&2
+cat "$TMP"
+# Extract only transcript lines (between "--- transcript ---" and "done.") to the output file
+awk '/^--- transcript ---/{p=1;next} /^done\./{p=0} p' "$TMP" > "$OUTPUT"
+rm -f "$TMP"
 echo "" >&2
 echo "Saved to: $OUTPUT" >&2
