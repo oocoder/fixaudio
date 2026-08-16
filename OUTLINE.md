@@ -102,11 +102,14 @@ correct even when speakers overlap.
 
 - `RecorderError.swift` — error enum.
 - `AudioDevices.swift` — Core Audio device lookup by name.
-- `DeviceCapture.swift` — one `AVAudioEngine` per input device (raw, no Voice
-  Processing). Includes an AUHAL (`kAudioUnitSubType_HALOutput`) capture path
-  for Bluetooth headsets — bypasses `installTap` via `AURenderCallback`, avoids
-  the AVAudioEngine aggregate that forces HFP mode. Key fix: must set
-  `kAudioUnitProperty_StreamFormat` on `kAudioUnitScope_Output, 1`.
+- `DeviceCapture.swift` — two capture paths: AVAudioEngine for the mic
+  (wired/built-in, via system default), AUHAL (`kAudioUnitSubType_HALOutput`)
+  for BlackHole (always) and Bluetooth headsets. AUHAL bypasses `installTap`
+  via `AURenderCallback` and avoids the AVAudioEngine aggregate device that
+  forces Bluetooth HFP mode. Key fix: must set `kAudioUnitProperty_StreamFormat`
+  on `kAudioUnitScope_Output, 1`. BlackHole always uses AUHAL because the
+  AVAudioEngine aggregate was forcing the Bluetooth headset into 16 kHz HFP
+  mode even when recording with a wired mic.
 - `MeetingRecorder.swift` — owns both captures + the ffmpeg encode (centered
   M4A + `-sources.m4a`).
 - `Transcriber.swift` — FluidAudio per-source transcription (Parakeet + offline
@@ -144,12 +147,12 @@ The following path has been validated with a meeting running on two devices:
 
 ## Known limitations
 
-- Bluetooth headsets switch to HFP mode (16 kHz mono) during recording — this
-  is a Bluetooth protocol limitation, not an app issue. A2DP (48 kHz stereo)
-  resumes automatically when recording stops. The mic picker labels Bluetooth
-  devices as "(Bluetooth — AUHAL)". Bluetooth capture uses AUHAL
-  (`kAudioUnitSubType_HALOutput`) for both mic and meeting (BlackHole) to avoid
-  AVAudioEngine's aggregate device, which would keep HFP active after stop.
+- Bluetooth headsets switch to HFP mode (16 kHz mono) when selected as the
+  mic — this is a Bluetooth protocol limitation. A2DP (48 kHz stereo) resumes
+  automatically when recording stops. When using a wired mic, the Bluetooth
+  headset stays in A2DP mode because BlackHole uses AUHAL (no AVAudioEngine
+  aggregate to force HFP). The mic picker labels Bluetooth devices as
+  "(Bluetooth — AUHAL)".
 - BlackHole and ffmpeg must be installed separately.
 - The recorder writes `<stem>.m4a` (centered, for playback) and
   `<stem>-sources.m4a` (L=mic/R=remote, for transcription). The temporary
