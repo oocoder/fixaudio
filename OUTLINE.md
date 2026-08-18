@@ -15,6 +15,8 @@ Testing showed that QuickTime could open the physical microphone directly while
 a meeting was active, but opening the aggregate device stalled its meter until
 Core Audio was restarted. Independent input capture avoids that failure.
 
+Current Meeting Recorder release: **0.18**.
+
 ## System diagram
 
 ```mermaid
@@ -88,10 +90,14 @@ on-device.
 UI: the menu-bar icon animates with stationary fill-pulses — a slow pulse on
 record.circle while recording and a faster pulse on text.bubble while
 transcribing (monochrome, no rotation). The status line reports progress and
-results — there are no success modals. "Transcribe Last Recording" is grayed
-out until a recording exists (NSMenu.autoenablesItems is disabled so the manual
-enabled state sticks). Sides or segments with no speech (e.g. a recording with
-no remote party) are skipped rather than failing the transcription.
+results — there are no success modals. After recording stops, the menu shows
+"Finishing M4A…" and keeps recording/transcription actions disabled until the
+centered and per-source files have finished exporting; it then switches back to
+"Start Meeting Recording…" and enables "Transcribe Last Recording". The latter
+is otherwise grayed out until a recording exists (NSMenu.autoenablesItems is
+disabled so the manual enabled state sticks). Sides or segments with no speech
+(e.g. a recording with no remote party) are skipped rather than failing the
+transcription.
 
 Diarizing the per-source channels (not the summed mix) is what makes labels
 correct even when speakers overlap.
@@ -116,7 +122,12 @@ correct even when speakers overlap.
   VBx).
 - `StatusIconAnimator.swift` — menu-bar icon pulse animation.
 - `AppDelegate.swift` — menu-bar UI + record/transcribe actions.
+- `RecordingMenuState.swift` — pure menu-state calculation used by the UI and
+  regression tests.
 - `main.swift` — entry point (`NSApplication.shared` + `run`).
+
+`Tests/MeetingRecorderTests/` — unit tests for recording, finalization, idle,
+and transcription menu states.
 
 `experiments/native-transcriber/` — a standalone Swift CLI testbed for the same
 FluidAudio transcription (used to validate per-source diarization; the app
@@ -178,10 +189,12 @@ The following path has been validated with a meeting running on two devices:
 - Signed and notarized release packaging.
 - Multi-party (4+) diarization validation; Sortformer/LS-EEND engine options.
 - Optional live transcription preview (streaming ASR + diarization).
-- Automated tests: none yet. The app is GUI / Core Audio / FluidAudio, so
-  verification is build + manual test; unit tests would require mocking
-  AVAudioEngine / Core Audio / FluidAudio. Priorities when added: M4A
-  finalization and device-loss recovery.
+- Automated tests cover the recording menu state transitions, including the
+  `Finishing M4A…` state and enabling `Transcribe Last Recording` only after
+  export completes. The app is also GUI / Core Audio / FluidAudio, so audio
+  capture and transcription verification remain build + manual test; unit
+  tests would require mocking AVAudioEngine / Core Audio / FluidAudio. Next
+  priorities: M4A finalization and device-loss recovery.
 
 Screen/video capture is intentionally out of scope for the current audio-only
 application.

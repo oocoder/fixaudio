@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lastSourcesURL: URL?
     private var iconAnimator: StatusIconAnimator!
     private var isTranscribing = false
+    private var isFinishing = false
 
     private var micDeviceName: String {
         get { UserDefaults.standard.string(forKey: "micDeviceName") ?? "External Microphone" }
@@ -69,17 +70,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func updateMenuStates() {
         let mics = AudioDevices.inputDeviceNames()
-        let micID = AudioDevices.id(named: micDeviceName)
         let micAvailable = mics.contains(micDeviceName)
         let exists = lastSourcesURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
 
-        if recorder.isRecording {
-            recordItem.isEnabled = !isTranscribing
-        } else {
-            recordItem.isEnabled = !isTranscribing && micAvailable
-        }
-        transcribeItem.isEnabled = !isTranscribing && !recorder.isRecording && exists
-        transcribeAnyItem.isEnabled = !isTranscribing && !recorder.isRecording
+        let menuState = RecordingMenuState.make(
+            isRecording: recorder.isRecording,
+            isFinishing: isFinishing,
+            isTranscribing: isTranscribing,
+            micAvailable: micAvailable,
+            sourceExists: exists
+        )
+        recordItem.title = menuState.recordTitle
+        recordItem.isEnabled = menuState.recordEnabled
+        transcribeItem.isEnabled = menuState.transcribeLastEnabled
+        transcribeAnyItem.isEnabled = menuState.transcribeAnyEnabled
         microphoneItem.title = micAvailable ? "Microphone: \(micDeviceName)" : "Microphone: (none)"
 
         let submenu = NSMenu()
@@ -111,11 +115,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func toggleRecording() {
         if recorder.isRecording {
-            recordItem.isEnabled = false
+            isFinishing = true
+            updateMenuStates()
             status.title = "Finishing M4A…"
             recorder.stop { [weak self] result in
                 guard let self else { return }
-                self.recordItem.title = "Start Meeting Recording…"
+                self.isFinishing = false
                 self.iconAnimator.setIdle()
                 switch result {
                 case .success(let url):
