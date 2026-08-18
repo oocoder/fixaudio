@@ -20,5 +20,8 @@ let package = Package(
                           dependencies: [.product(name: "FluidAudio", package: "FluidAudio")],
                           path: "src/MeetingRecorder",
                           swiftSettings: [.swiftLanguageMode(.v5)]),
+        .testTarget(name: "MeetingRecorderTests",
+                    dependencies: ["MeetingRecorder"],
+                    path: "Tests/MeetingRecorderTests"),
     ]
 )
