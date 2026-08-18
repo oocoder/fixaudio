@@ -11,7 +11,7 @@ import Foundation
 ///   aggregate device forces HFP 16 kHz, causing a tap-format mismatch.
 /// - **AUHAL** (`useAUHAL: true`): uses `kAudioUnitSubType_HALOutput` with an
 ///   `AURenderCallback`. No aggregate device, no `installTap` — works with
-///   Bluetooth headsets. Verified in `experiments/audio-unit-capture/`.
+///   Bluetooth headsets.
 final class DeviceCapture {
     private let deviceName: String
     private let useSystemDefault: Bool

@@ -81,7 +81,7 @@ fi
 
 # Resolve the project root from the nt script location
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-NT_DIR="$SCRIPT_DIR/experiments/native-transcriber"
+NT_DIR="$SCRIPT_DIR/native-transcriber"
 NT_BIN="$NT_DIR/.build/release/native-transcriber"
 
 # Build if needed

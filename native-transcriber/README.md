@@ -1,10 +1,10 @@
-# native-transcriber (1.0-alpha.3)
+# native-transcriber CLI (1.0-alpha.3)
 
 Native meeting transcription on Apple Silicon via
 [FluidAudio](https://github.com/FluidInference/FluidAudio) — Parakeet ASR
 (CoreML/ANE) + speaker diarization, all native Swift, **no Python**.
 
-## Status
+## Production CLI
 
 **Builds and runs on macOS 15 / Swift 6.** Validated end-to-end on M2 Pro /
 macOS 15.4 with a real 1:1 recording: correct `You` / `Remote` labels, including
@@ -28,7 +28,7 @@ mic side is single-speaker → labeled "You" directly.
 ## Build & run
 
 ```sh
-cd experiments/native-transcriber
+cd native-transcriber
 swift build
 ./.build/debug/native-transcriber /path/to/recording-sources.m4a
 ```
