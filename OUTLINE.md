@@ -79,7 +79,7 @@ last recording):
 
 CLI: `nt <file.m4a>` transcribes any recording from the command line. `nt
 <file.m4a> -o <out.txt>` specifies the output file. `nt` auto-builds
-`experiments/native-transcriber` on first run and caches the binary.
+`native-transcriber` on first run and caches the binary.
 
 Engine: [FluidAudio](https://github.com/FluidInference/FluidAudio) — NVIDIA
 Parakeet TDT (CoreML/Apple Neural Engine) for ASR + an offline VBx (pyannote
@@ -129,14 +129,8 @@ correct even when speakers overlap.
 `Tests/MeetingRecorderTests/` — unit tests for recording, finalization, idle,
 and transcription menu states.
 
-`experiments/native-transcriber/` — a standalone Swift CLI testbed for the same
-FluidAudio transcription (used to validate per-source diarization; the app
-supersedes it for production use).
-
-`experiments/audio-unit-capture/` — a standalone AUHAL capture experiment that
-proved AudioUnit direct capture works with Bluetooth headsets and BlackHole.
-Key findings: no `installTap` crash, `AudioUnitRender` returns `noErr`, and the
-output-scope `StreamFormat` fix prevents `-50` paramErr.
+`native-transcriber/` — the standalone Swift CLI for `nt`, using the same
+FluidAudio per-source transcription pipeline as the app.
 
 Build: `Package.swift` (Swift Package Manager, depends on FluidAudio);
 `./build-meeting-recorder.sh` builds + signs `out/Meeting Recorder.app`. Install

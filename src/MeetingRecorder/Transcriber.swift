@@ -2,7 +2,7 @@ import Foundation
 import FluidAudio
 
 /// In-app per-source transcription (FluidAudio) for a recorder `-sources.m4a`
-/// (L = mic/You, R = remote). Mirrors the native-transcriber experiment.
+/// (L = mic/You, R = remote). Shares the native-transcriber CLI pipeline.
 ///
 /// `progress(phase, fraction)` and `completion` are called from a background
 /// task; callers that touch AppKit should dispatch to main inside their closures.
