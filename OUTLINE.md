@@ -175,6 +175,10 @@ The following path has been validated with a meeting running on two devices:
 
 ## Backlog
 
+- PII redaction before anything is written: spoken or numeric SSNs, cards, phones,
+  emails and account numbers become `[REDACTED: …]` in `<stem>.txt` (with a
+  values-free sidecar), and the same time ranges are muted in the recording.
+  Spec and success criteria: [#1](https://github.com/oocoder/fixaudio/issues/1).
 - Resilient device-UID persistence (survive device re-enumeration).
 - Independent local/remote level indicators and stalled-flow detection.
 - Recording elapsed time in the status menu.
